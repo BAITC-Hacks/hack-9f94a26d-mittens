@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { Map as MapInstance } from '@2gis/mapgl/types'
 import { boundaryBounds, loadDistrictBoundaries } from '../lib/astana-districts'
 import type { DistrictBoundary } from '../lib/astana-districts'
-import { applyLightMapStyle, BASE_MAP_STYLE } from '../lib/map-style'
+import { applyDarkMapStyle, applyLightMapStyle, mapThemeOptions } from '../lib/map-style'
+import type { MapTheme } from '../lib/map-style'
 
 type MapDistrict = { id: string; name: string; score: number }
 type MapGL = typeof import('@2gis/mapgl/types')
@@ -28,11 +29,12 @@ function colorFor(score: number) {
   return '#f0bc83'
 }
 
-export function AstanaMap({ districts, selectedDistrictId, onSelect, bottomInset = 0 }: {
+export function AstanaMap({ districts, selectedDistrictId, onSelect, bottomInset = 0, theme = 'dark' }: {
   districts: MapDistrict[]
   selectedDistrictId: string | null
   onSelect: (districtId: string) => void
   bottomInset?: number
+  theme?: MapTheme
 }) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const layers = useRef<{ destroy: () => void }[]>([])
@@ -77,14 +79,15 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect, bottomInset
         map = new api.Map(mapContainer.current, {
           center: [71.43, 51.14], zoom: 10.8, pitch: 0, rotation: 0, key,
           lang: 'ru', minZoom: 8, maxZoom: 19, zoomControl: false,
-          style: import.meta.env.VITE_2GIS_MAP_STYLE_ID?.trim() || BASE_MAP_STYLE,
-          defaultBackgroundColor: '#f7f9fc',
+          ...mapThemeOptions(theme),
+          style: import.meta.env.VITE_2GIS_MAP_STYLE_ID?.trim() || mapThemeOptions(theme).style,
           copyright: 'bottomLeft', scaleControl: 'bottomLeft',
           padding: { top: 150, right: 40, bottom: 150, left: 40 },
         })
         map.on('styleload', () => {
           if (!disposed && map && !import.meta.env.VITE_2GIS_MAP_STYLE_ID?.trim()) {
-            applyLightMapStyle(map)
+            if (theme === 'dark') applyDarkMapStyle(map)
+            else applyLightMapStyle(map)
           }
         })
         map.on('idle', () => {
@@ -103,7 +106,7 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect, bottomInset
       layers.current = []
       map?.destroy()
     }
-  }, [attempt])
+  }, [attempt, theme])
 
   useEffect(() => {
     if (!session || !boundaries.length) return
@@ -135,8 +138,8 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect, bottomInset
       const color = colorFor(district.score)
       boundary.polygons.forEach((coordinates) => {
         const polygon = new api.Polygon(map, {
-          coordinates, color: selected ? '#42b8f51a' : '#69caff05',
-          strokeColor: selected ? '#249fdf' : '#7d9cb7aa', strokeWidth: selected ? 2.5 : 1,
+          coordinates, color: selected ? '#42b8f518' : '#69caff03',
+          strokeColor: selected ? '#36aff0' : '#698ba299', strokeWidth: selected ? 2.5 : 1,
           zIndex: selected ? 2 : 1,
         })
         polygon.on('click', () => onSelect(district.id))
@@ -167,7 +170,7 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect, bottomInset
 
   return (
     <div className="astana-map" data-map-state={mapState}>
-      <div className="map-canvas" ref={mapContainer} aria-label="Интерактивная карта 2ГИС" />
+      <div className="map-canvas" ref={mapContainer} style={{ backgroundColor: mapThemeOptions(theme).defaultBackgroundColor }} aria-label="Интерактивная карта 2ГИС" />
       <div className="map-district-picker" aria-label="Районы Астаны">
         {districts.map((district) => <button id={'district-picker-' + district.id} key={district.id} type="button" aria-pressed={district.id === selectedDistrictId} onClick={() => focusDistrict(district.id)}>{district.name}</button>)}
       </div>
