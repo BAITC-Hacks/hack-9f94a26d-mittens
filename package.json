@@ -16,6 +16,7 @@
     "@2gis/mapgl": "^1.78.0",
     "@tanstack/react-router": "latest",
     "@tanstack/react-start": "latest",
+    "lucide-react": "^1.47.0",
     "openai": "^6.49.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

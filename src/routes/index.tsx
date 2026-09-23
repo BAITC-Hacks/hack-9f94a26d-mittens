@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Activity, Building2, BusFront, Check, ChevronLeft, ChevronRight, HeartPulse, Landmark, Layers3, MapPin, ShieldCheck, Trees, X } from 'lucide-react'
 import { AstanaMap } from '../components/AstanaMap'
 import campaignData from '../../data/campaigns.json'
 import { validateSelection } from '../lib/selection.mjs'
@@ -36,6 +37,8 @@ const initiatives = campaignData.measures
 const districtIds: Record<string, string> = { saryarka: 'Saryarka', almaty: 'Almaty', yesil: 'Esil', baikonyr: 'Baikonur', nura: 'Nura', saraishyk: 'Saraishyk' }
 const directionLabels: Record<string, string> = { T: 'Транспорт', E: 'Экология', S: 'Социальная сфера', B: 'Безопасность', C: 'Сервисы' }
 
+const directionIcons = { T: BusFront, E: Trees, S: HeartPulse, B: ShieldCheck, C: Building2 }
+
 const indicatorLabels: Record<IndicatorKey, string> = {
   transport: 'Транспорт', green: 'Озеленение', social: 'Инфраструктура', safety: 'Безопасность', service: 'Сервисы',
 }
@@ -46,19 +49,19 @@ export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
   const [districts, setDistricts] = useState(initialDistricts)
-  const [selectedDistrictId, setSelectedDistrictId] = useState('saryarka')
+  const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null)
   const [selections, setSelections] = useState<Selection[]>([])
   const [selectedDirection, setSelectedDirection] = useState<string | null>(null)
   const directionHeading = useRef<HTMLHeadingElement>(null)
   const lastDirection = useRef<string | null>(null)
   const budget = campaignData.rules.budget - selections.reduce((sum, item) => sum + initiatives.find(measure => measure.id === item.id)!.cost, 0)
   const [score, setScore] = useState<number | null>(null)
-  const [message, setMessage] = useState('Добавьте 5 инициатив в пределах 100 млрд. Не более двух одного направления.')
+  const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
 
-  const selectedDistrict = districts.find((district) => district.id === selectedDistrictId) ?? districts[0]
+  const selectedDistrict = districts.find((district) => district.id === selectedDistrictId) ?? null
   const validationError = validateSelection(selections, campaignData, true)
-  const average = useMemo(() => Math.round(indicatorOrder.reduce((sum, key) => sum + selectedDistrict.indicators[key], 0) / indicatorOrder.length), [selectedDistrict])
+  const average = selectedDistrict ? Math.round(indicatorOrder.reduce((sum, key) => sum + selectedDistrict.indicators[key], 0) / indicatorOrder.length) : 0
 
   const mapDistricts = useMemo(() => districts.map(district => ({ ...district, score: Math.round(indicatorOrder.reduce((sum, key) => sum + district.indicators[key], 0) / indicatorOrder.length) })), [districts])
 
@@ -70,6 +73,19 @@ function Home() {
       document.getElementById(`direction-${lastDirection.current}`)?.focus()
     }
   }, [selectedDirection])
+
+  const selectDistrict = useCallback((id: string) => {
+    lastDirection.current = null
+    setSelectedDirection(null)
+    setSelectedDistrictId(id)
+  }, [])
+
+  function closeDistrict() {
+    lastDirection.current = null
+    setSelectedDirection(null)
+    setSelectedDistrictId(null)
+    document.getElementById('district-picker-' + selectedDistrictId)?.focus()
+  }
 
   async function submitDecision() {
     if (isSending) return
@@ -97,62 +113,99 @@ function Home() {
   }
 
   return (
-    <main className="war-room">
-      <aside className="intel-panel" aria-label="Панель развития города">
-        <div className="intel-brand"><span>ASTANA</span><strong>Штаб управления</strong><small>Синтетическая модель районов</small></div>
-        <div className="city-score"><span>Astana Quality of Life</span><strong>{score ?? '—'}</strong><small>/100 · выбрано {selections.length} из {campaignData.rules.count}</small></div>
-        <div className="district-profile"><p className="panel-label">Выбранный район</p><h1>{selectedDistrict.name}</h1><span>{selectedDistrict.population} жителей</span><div className="district-index"><b>{average}</b><small>Индекс развития</small></div></div>
-        <div className="indicator-list">{indicatorOrder.map((key) => <div className="indicator-row" key={key}><div><span>{indicatorLabels[key]}</span><b>{selectedDistrict.indicators[key]}</b></div><div className="meter"><i style={{ width: `${selectedDistrict.indicators[key]}%` }} /></div></div>)}</div>
-        <div className="intel-report"><span>Сводка аналитика</span><p role="status">{message}</p></div>
-      </aside>
-
+    <main className={'city-workspace' + (selectedDistrict ? ' district-is-selected' : '')}>
       <section className="command-map" aria-label="Карта Астаны">
-        <div className="map-title"><p>Карта сценария</p><h2>Астана · режим управления</h2></div>
-        <AstanaMap districts={mapDistricts} selectedDistrictId={selectedDistrictId} onSelect={setSelectedDistrictId} />
-        <div className="treasury-overlay" aria-label="Бюджет команды"><span>Казна города</span><strong>₸ {budget} млрд</strong><small>Доступно для решений</small></div>
-        <div className="map-key"><i className="key-good" /> стабильно <i className="key-warning" /> зона риска <i className="key-danger" /> критично</div>
+        <AstanaMap districts={mapDistricts} selectedDistrictId={selectedDistrictId} onSelect={selectDistrict} />
+      </section>
 
-        <section className="decision-dock" aria-label="Выбор инициативы">
-          <div className="dock-head"><div><p className="panel-label">{selectedDirection ? 'Выберите инициативы' : 'Выберите категорию'}</p><h2 ref={directionHeading} tabIndex={-1}>{selectedDirection ? directionLabels[selectedDirection] : 'Направления развития'}</h2></div><span>{selections.length} / {campaignData.rules.count}</span></div>
+      <header className="city-hud">
+        <div className="city-brand hud-panel">
+          <Landmark className="brand-icon" size={27} strokeWidth={1.5} aria-hidden="true" />
+          <div><h1>Астана</h1><p>Аким на 5 часов</p></div>
+          <span className="simulation-label">Симулятор города</span>
+        </div>
+        <div className="city-resources hud-panel" aria-label="Показатели сценария">
+          <div className="resource budget-resource"><span>Доступный бюджет</span><strong>{budget}<small> млрд ₸</small></strong></div>
+          <div className="resource"><span>Инициативы</span><strong>{selections.length}<small> / {campaignData.rules.count}</small></strong></div>
+          <div className="resource"><span>Качество жизни</span><strong>{score ?? '—'}<small> / 100</small></strong></div>
+        </div>
+      </header>
+
+      {selectedDistrict ? <>
+        <aside className="district-panel hud-panel" aria-label="Показатели района">
+          <div className="district-panel-head">
+            <span className="eyebrow"><MapPin size={14} aria-hidden="true" /> Выбранный район</span>
+            <button className="icon-button" type="button" onClick={closeDistrict} aria-label="Закрыть район"><X size={18} aria-hidden="true" /></button>
+          </div>
+          <h2>{selectedDistrict.name}</h2>
+          <p className="district-population">{selectedDistrict.population} жителей</p>
+          <div className="district-index"><Activity size={20} aria-hidden="true" /><span>Индекс развития</span><strong>{average}<small> / 100</small></strong></div>
+          <div className="indicator-list">{indicatorOrder.map((key) => <div className="indicator-row" key={key}>
+            <div><span>{indicatorLabels[key]}</span><b>{selectedDistrict.indicators[key]}</b></div>
+            <div className="meter" role="meter" aria-label={indicatorLabels[key]} aria-valuenow={selectedDistrict.indicators[key]} aria-valuemin={0} aria-valuemax={100}><i style={{ width: selectedDistrict.indicators[key] + '%' }} /></div>
+          </div>)}</div>
+          <p className="synthetic-note">Игровые показатели, не городская статистика</p>
+        </aside>
+
+        <section className="decision-dock hud-panel" aria-label="Выбор инициативы">
+          <div className="dock-head">
+            <div><p className="eyebrow">Развитие района · {selectedDistrict.name}</p><h2 ref={directionHeading} tabIndex={-1}>{selectedDirection ? directionLabels[selectedDirection] : 'Что изменим?'}</h2></div>
+            <Layers3 size={22} strokeWidth={1.5} aria-hidden="true" />
+          </div>
           {selectedDirection ? <>
-            <button className="category-back" type="button" onClick={() => setSelectedDirection(null)}><span aria-hidden="true">←</span> Все категории</button>
-            <div className="initiative-list" aria-label={`Инициативы: ${directionLabels[selectedDirection]}`} key={selectedDirection}>
-            {initiatives.filter((initiative) => initiative.direction === selectedDirection).map((initiative) => {
-              const selected = selections.some(item => item.id === initiative.id)
-              const candidate: Selection = initiative.type === 'R' ? { id: initiative.id, district: districtIds[selectedDistrictId] } : { id: initiative.id }
-              const reason = selected ? null : validateSelection([...selections, candidate], campaignData)
-              return <button className={`initiative ${selected ? 'selected' : ''}`} aria-pressed={selected} disabled={Boolean(reason) || isSending} key={initiative.id} onClick={() => {
-                setSelections(current => {
-                  const next = selected ? current.filter(item => item.id !== initiative.id) : [...current, candidate]
-                  return validateSelection(next, campaignData) ? current : next
-                })
-                setScore(null)
-                setDistricts(initialDistricts)
-                setMessage('Сценарий изменён. Добавьте ровно 5 инициатив и отправьте на расчёт.')
-              }} type="button"><span className="initiative-category">{initiative.id} · {directionLabels[initiative.direction]}</span><strong>{initiative.title}</strong><small>{selected ? 'Выбрано · нажмите, чтобы убрать' : initiative.type === 'C' ? 'Весь город' : selectedDistrict.name}</small><b>₸ {initiative.cost} млрд</b>{reason && <small className="constraint-reason">{reason}</small>}</button>
-
-            })}
+            <button className="category-back" type="button" onClick={() => setSelectedDirection(null)}><ChevronLeft size={16} aria-hidden="true" /> Все категории</button>
+            <div className="initiative-list" aria-label={'Инициативы: ' + directionLabels[selectedDirection]} key={selectedDirection}>
+              {initiatives.filter((initiative) => initiative.direction === selectedDirection).map((initiative) => {
+                const selected = selections.some(item => item.id === initiative.id)
+                const candidate: Selection = initiative.type === 'R' ? { id: initiative.id, district: districtIds[selectedDistrict.id] } : { id: initiative.id }
+                const reason = selected ? null : validateSelection([...selections, candidate], campaignData)
+                return <button className={'initiative' + (selected ? ' selected' : '')} aria-pressed={selected} disabled={Boolean(reason) || isSending} key={initiative.id} onClick={() => {
+                  setSelections(current => {
+                    const next = selected ? current.filter(item => item.id !== initiative.id) : [...current, candidate]
+                    return validateSelection(next, campaignData) ? current : next
+                  })
+                  setScore(null)
+                  setDistricts(initialDistricts)
+                  setMessage('')
+                }} type="button">
+                  <span className="initiative-meta"><span>{initiative.id} · {initiative.type === 'C' ? 'Весь город' : selectedDistrict.name}</span><b>{initiative.cost} млрд ₸</b></span>
+                  <strong>{initiative.title}</strong>
+                  <small className="initiative-state">{selected ? <><Check size={14} aria-hidden="true" /> В сценарии · нажмите, чтобы убрать</> : 'Добавить в сценарий'}</small>
+                  {reason && <small className="constraint-reason">{reason}</small>}
+                </button>
+              })}
             </div>
-          </> : <div className="category-list" aria-label="Категории инициатив">
-            {Object.entries(directionLabels).map(([direction, label]) => {
-              const measures = initiatives.filter((initiative) => initiative.direction === direction)
-              const selectedCount = selections.filter((selection) => measures.some((measure) => measure.id === selection.id)).length
-              return <button className={`category-button${selectedCount ? ' has-selections' : ''}`} id={`direction-${direction}`} key={direction} type="button" onClick={() => setSelectedDirection(direction)}>
-                <span><strong>{label}</strong><small>{measures.length} инициативы · выбрано {selectedCount} из {campaignData.rules.perDirection}</small></span>
-                <span className="category-chevron" aria-hidden="true">›</span>
-              </button>
-            })}
-          </div>}
+          </> : <>
+            <p className="dock-description">Сначала направление, затем инициатива</p>
+            <div className="category-list" aria-label="Категории инициатив">
+              {Object.entries(directionLabels).map(([direction, label]) => {
+                const Icon = directionIcons[direction as keyof typeof directionIcons]
+                const measures = initiatives.filter((initiative) => initiative.direction === direction)
+                const selectedCount = selections.filter((selection) => measures.some((measure) => measure.id === selection.id)).length
+                return <button className={'category-button' + (selectedCount ? ' has-selections' : '')} id={'direction-' + direction} key={direction} type="button" onClick={() => setSelectedDirection(direction)}>
+                  <Icon className="category-icon" size={23} strokeWidth={1.6} aria-hidden="true" />
+                  <span className="category-copy"><strong>{label}</strong><small>{measures.length} инициативы</small></span>
+                  {selectedCount > 0 && <span className="category-count" aria-label={'Выбрано ' + selectedCount + ' из ' + campaignData.rules.perDirection}>{selectedCount}/{campaignData.rules.perDirection}</span>}
+                  <ChevronRight size={17} className="category-chevron" aria-hidden="true" />
+                </button>
+              })}
+            </div>
+          </>}
           <div className="decision-footer">
-            <ul className="selected-campaigns">{selections.map(selection => <li key={selection.id}>
-              <span>{initiatives.find(item => item.id === selection.id)?.title} → {selection.district ? initialDistricts.find(item => districtIds[item.id] === selection.district)?.name : 'Весь город'}</span>
-              <button type="button" disabled={isSending} aria-label={`Убрать ${selection.id}`} onClick={() => { setSelections(current => current.filter(item => item.id !== selection.id)); setScore(null); setDistricts(initialDistricts); setMessage('Сценарий изменён. Добавьте инициативу и повторите расчёт.') }}>Убрать</button>
-            </li>)}</ul>
-            <p>{validationError ?? 'Сценарий готов. Остаток бюджета не даёт бонуса.'}</p>
-            <button className="command-button" disabled={Boolean(validationError) || isSending} onClick={submitDecision} type="button">{isSending ? 'Считаем…' : 'Отправить сценарий на расчёт'}</button>
+            <div className="scenario-heading"><span>Ваш сценарий</span><strong>{selections.length} / {campaignData.rules.count}</strong></div>
+            {selections.length > 0 && <ul className="selected-campaigns">{selections.map(selection => <li key={selection.id}>
+              <span>{initiatives.find(item => item.id === selection.id)?.title}<small>{selection.district ? initialDistricts.find(item => districtIds[item.id] === selection.district)?.name : 'Весь город'}</small></span>
+              <button className="icon-button" type="button" disabled={isSending} aria-label={'Убрать ' + selection.id} onClick={() => { setSelections(current => current.filter(item => item.id !== selection.id)); setScore(null); setDistricts(initialDistricts); setMessage('') }}><X size={15} aria-hidden="true" /></button>
+            </li>)}</ul>}
+            <p className="scenario-hint">{validationError ?? 'Готов к расчёту. Остаток бюджета не даёт бонуса.'}</p>
+            <button className="command-button" disabled={Boolean(validationError) || isSending} onClick={submitDecision} type="button">{isSending ? 'Считаем…' : 'Рассчитать сценарий'}</button>
+            <div className="calculation-status" role="status">{message}</div>
           </div>
         </section>
-      </section>
+      </> : <div className="selection-prompt hud-panel">
+        <MapPin size={23} strokeWidth={1.6} aria-hidden="true" />
+        <div><strong>С какого района начнём?</strong><p>Выберите район на карте, чтобы перейти к действиям</p></div>
+      </div>}
     </main>
   )
 }

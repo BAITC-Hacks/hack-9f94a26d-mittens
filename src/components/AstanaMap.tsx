@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Map as MapInstance } from '@2gis/mapgl/types'
 import { boundaryBounds, loadDistrictBoundaries } from '../lib/astana-districts'
 import type { DistrictBoundary } from '../lib/astana-districts'
+import { applyLightMapStyle, BASE_MAP_STYLE } from '../lib/map-style'
 
 type MapDistrict = { id: string; name: string; score: number }
 type MapGL = typeof import('@2gis/mapgl/types')
@@ -22,14 +23,14 @@ function loadSdk() {
 }
 
 function colorFor(score: number) {
-  if (score >= 58) return '#25846c'
-  if (score >= 45) return '#b78223'
-  return '#bb5149'
+  if (score >= 58) return '#79d5b0'
+  if (score >= 45) return '#79caff'
+  return '#f0bc83'
 }
 
 export function AstanaMap({ districts, selectedDistrictId, onSelect }: {
   districts: MapDistrict[]
-  selectedDistrictId: string
+  selectedDistrictId: string | null
   onSelect: (districtId: string) => void
 }) {
   const mapContainer = useRef<HTMLDivElement>(null)
@@ -75,8 +76,15 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect }: {
         map = new api.Map(mapContainer.current, {
           center: [71.43, 51.14], zoom: 10.8, pitch: 0, rotation: 0, key,
           lang: 'ru', minZoom: 8, maxZoom: 19, zoomControl: false,
+          style: import.meta.env.VITE_2GIS_MAP_STYLE_ID?.trim() || BASE_MAP_STYLE,
+          defaultBackgroundColor: '#f7f9fc',
           copyright: 'bottomLeft', scaleControl: 'bottomLeft',
-          padding: { top: 110, right: 380, bottom: 80, left: 35 },
+          padding: { top: 170, right: 40, bottom: 150, left: 40 },
+        })
+        map.on('styleload', () => {
+          if (!disposed && map && !import.meta.env.VITE_2GIS_MAP_STYLE_ID?.trim()) {
+            applyLightMapStyle(map)
+          }
         })
         map.on('idle', () => {
           if (!disposed) { ready = true; window.clearTimeout(timer); setMapState('ready'); setMapError('') }
@@ -97,10 +105,23 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect }: {
   }, [attempt])
 
   useEffect(() => {
-    if (session && boundaries.length) session.map.fitBounds(boundaryBounds(boundaries), {
-      padding: { top: 20, right: 20, bottom: 20, left: 20 },
-    })
-  }, [session, boundaries])
+    if (!session || !boundaries.length) return
+    const fitDistrict = () => {
+      const width = mapContainer.current?.clientWidth ?? window.innerWidth
+      const height = mapContainer.current?.clientHeight ?? window.innerHeight
+      const selected = Boolean(selectedDistrictId)
+      session.map.setPadding(width <= 760
+        ? { top: selected ? 245 : 140, right: 20, bottom: selected ? Math.min(height * .52, height - 300) + 80 : 190, left: 20 }
+        : { top: 170, right: selected ? (width <= 1100 ? 374 : 406) : 50, bottom: 150, left: selected ? (width <= 1100 ? 279 : 318) : 50 })
+      const boundary = boundaries.find(entry => entry.id === selectedDistrictId)
+      session.map.fitBounds(boundaryBounds(boundary ? [boundary] : boundaries), {
+        padding: { top: 15, right: 15, bottom: 15, left: 15 }, maxZoom: 12.5,
+      })
+    }
+    fitDistrict()
+    window.addEventListener('resize', fitDistrict)
+    return () => window.removeEventListener('resize', fitDistrict)
+  }, [session, boundaries, selectedDistrictId])
 
   useEffect(() => {
     if (!session || !boundaries.length) return
@@ -112,8 +133,8 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect }: {
       const color = colorFor(district.score)
       boundary.polygons.forEach((coordinates) => {
         const polygon = new api.Polygon(map, {
-          coordinates, color: color + (selected ? '45' : '22'),
-          strokeColor: selected ? '#75500d' : color, strokeWidth: selected ? 3 : 1.5,
+          coordinates, color: selected ? '#42b8f51a' : '#69caff05',
+          strokeColor: selected ? '#249fdf' : '#7d9cb7aa', strokeWidth: selected ? 2.5 : 1,
           zIndex: selected ? 2 : 1,
         })
         polygon.on('click', () => onSelect(district.id))
@@ -139,17 +160,13 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect }: {
 
   function focusDistrict(id: string) {
     onSelect(id)
-    const boundary = boundaries.find((entry) => entry.id === id)
-    if (session && boundary) session.map.fitBounds(boundaryBounds([boundary]), {
-      padding: { top: 35, right: 35, bottom: 35, left: 35 }, maxZoom: 12,
-    })
   }
 
   return (
     <div className="astana-map" data-map-state={mapState}>
       <div className="map-canvas" ref={mapContainer} aria-label="Интерактивная карта 2ГИС" />
       <div className="map-district-picker" aria-label="Районы Астаны">
-        {districts.map((district) => <button key={district.id} type="button" aria-pressed={district.id === selectedDistrictId} onClick={() => focusDistrict(district.id)}>{district.name}</button>)}
+        {districts.map((district) => <button id={'district-picker-' + district.id} key={district.id} type="button" aria-pressed={district.id === selectedDistrictId} onClick={() => focusDistrict(district.id)}>{district.name}</button>)}
       </div>
       <div className="map-controls" aria-label="Управление картой">
         <button type="button" aria-label="Приблизить карту" disabled={!session} onClick={() => session?.map.setZoom(session.map.getZoom() + 1)}>+</button>
