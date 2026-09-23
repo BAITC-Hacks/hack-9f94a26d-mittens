@@ -10,12 +10,13 @@
     "generate-routes": "tsr generate",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test tests/*.test.mjs"
+    "test": "tsx --test tests/*.test.mjs src/server/*.test.ts src/simulator/*.test.ts"
   },
   "dependencies": {
     "@2gis/mapgl": "^1.78.0",
     "@tanstack/react-router": "latest",
     "@tanstack/react-start": "latest",
+    "openai": "^6.49.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "wellknown": "^0.5.0"
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19.2.0",
     "@types/wellknown": "^0.5.8",
     "@vitejs/plugin-react": "^6.0.1",
+    "tsx": "^4.23.15",
     "typescript": "^6.0.2",
     "vite": "^8.0.0"
   },
