@@ -14,3 +14,6 @@ todos.json
 output/playwright/
 .playwright-cli/
 Agents.md
+.vercel
+.env*
+.dev.vars*
