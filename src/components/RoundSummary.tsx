@@ -13,9 +13,10 @@ type RoundSummaryProps = {
   onClose: () => void
   onNewRound: () => void
   analysis: AnalysisMessage | null
+  onRetryAnalysis: () => void
 }
 
-export function RoundSummary({ result, open, onClose, onNewRound, analysis }: RoundSummaryProps) {
+export function RoundSummary({ result, open, onClose, onNewRound, analysis, onRetryAnalysis }: RoundSummaryProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const title = useRef<HTMLHeadingElement>(null)
   const report = roundFeedback(result)
@@ -53,16 +54,9 @@ export function RoundSummary({ result, open, onClose, onNewRound, analysis }: Ro
             <small>{formatMetric(direction.before)} → {formatMetric(direction.after)}</small>
           </div>)}
         </section>
-        <section className="round-district-summary" aria-label="Районы за весь раунд">
-          <h3>Результат по районам</h3><p>Индекс D до и после решений</p>
-          <table><thead><tr><th scope="col">Район</th><th scope="col">Было</th><th scope="col">Стало</th><th scope="col">Δ</th></tr></thead><tbody>{report.districts.map(district => <tr key={district.id}>
-            <th scope="row">{district.name}</th><td>{formatScore(district.before)}</td><td>{formatScore(district.after)}</td><td className={'result-delta ' + district.tone}>{district.text}</td>
-          </tr>)}</tbody></table>
-          <p className="round-unchanged">Без изменений: {report.unchanged} из 50 показателей.</p>
-        </section>
       </div>
 
-      <AIExplanation message={analysis} scope="раунд" />
+      <AIExplanation message={analysis} scope="раунд" onRetry={onRetryAnalysis} />
       <section className="round-congratulations"><h3>Поздравляем с завершением раунда!</h3><p>{report.conclusion}</p></section>
       <footer className="round-summary-footer"><button className="reset-button" type="button" onClick={onClose}>Вернуться к карте</button><button className="command-button" type="button" onClick={onNewRound}><RotateCcw size={15} aria-hidden="true" /> Новый раунд</button></footer>
     </div>

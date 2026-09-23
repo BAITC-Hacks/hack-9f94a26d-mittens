@@ -20,7 +20,7 @@ White/off-white land, retained blue water and green parks, understated district 
 
 - Buttons: compact solid blue primary action, horizontal category tabs, clear selected, applied, disabled and keyboard-focus states. Tabs support arrow keys, Home and End.
 - Cards: quiet black translucent HUD panels, 10px radius, fine neutral border, no glow.
-- Modal: final whole-round report with a dark backdrop, before/after Score, citywide directions, five district scores, actual improvement/loss counts, a short GPT explanation, congratulations and a new-round action. Escape/close returns focus to “Итоги раунда”.
+- Modal: compact single-column final report with a dark backdrop, before/after Score, citywide directions, actual improvement/loss counts, a short GPT explanation with “Обновить отчёт”, congratulations and a new-round action. Do not show a district table or unchanged-indicator count here. Escape/close returns focus to “Итоги раунда”.
 - Header: small city identity at top left; a compact two-column budget/decision-count panel at top right. Only show the final Score when calculated. No “О раунде” panel.
 - Primary screen: edge-to-edge map. Initially no district is selected; show a short selection prompt. Selecting a district reveals its statistics and action dock. Closing hides both without clearing the scenario.
 - District panel: tall, left-side, from below the district picker to the bottom safe margin, independent of action dock height on desktop. Display weighted district D and five native disclosure groups expanding into raw indicator pairs. Put definitions in a second disclosure; keep critical warnings visible. Move population, scenario background and calculation notes into “О районе и показателях”.
@@ -30,7 +30,7 @@ White/off-white land, retained blue water and green parks, understated district 
 - Result flow: before five applied measures, show “Следующее действие”. Once complete, show “Итоги раунда”. If all five are submitted at once, do not automatically open the round modal: show step results first. If a round is completed incrementally, open the whole-round report automatically; it can be closed and reopened. Whole-round figures always compare to the baseline, unlike last-step figures.
 - Desktop panels never overlap; narrow screens stack statistics above the bottom dock. Measured dock height controls map padding and mobile statistics bounds. Keep 2GIS attribution visible.
 - Text animation: text-no-animation.
-- Motion: no motion; direct state feedback.
+- Motion: direct state feedback, except while waiting for GPT: a compact construction scene and an indeterminate blue line. Stop/unmount animation on response or error, respect prefers-reduced-motion, and never display fictitious completion percentages.
 - Scroll: scroll-native.
 
 ## States

@@ -38,6 +38,7 @@ function Home() {
   const [analysis, setAnalysis] = useState<AnalysisMessage | null>(null)
   const [roundAnalysis, setRoundAnalysis] = useState<AnalysisMessage | null>(null)
   const analysisRequest = useRef(0)
+  const analysisInFlight = useRef(false)
   const [completedStep, setCompletedStep] = useState<CompletedStep | null>(null)
   const [roundResult, setRoundResult] = useState<SimulationResult | null>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
@@ -76,12 +77,42 @@ function Home() {
     setAnalysis(null)
     setRoundAnalysis(null)
     analysisRequest.current++
+    analysisInFlight.current = false
     setCompletedStep(null)
     setSummaryOpen(false)
     setRoundResult(null)
     setSelectedTab('T')
     setMessage('Новый раунд начат.')
     requestAnimationFrame(() => document.getElementById('initiative-tab-T')?.focus())
+  }
+
+  function requestAnalysis(cumulative: Selection[], previous: Selection[]) {
+    const requestId = ++analysisRequest.current
+    const fullRound = cumulative.length === campaignData.rules.count
+    analysisInFlight.current = true
+    setAnalysis({ status: 'loading' })
+    if (fullRound) setRoundAnalysis({ status: 'loading' })
+    void explainCityActions({ data: {
+      actions: cumulative.map(({ id, ...target }) => ({ measureId: id, ...target })),
+      previousActions: previous.map(({ id, ...target }) => ({ measureId: id, ...target })),
+    } }).then(explanation => {
+      if (requestId !== analysisRequest.current) return
+      setAnalysis(analysisMessage(explanation.step))
+      if (explanation.round) setRoundAnalysis(analysisMessage(explanation.round))
+    }).catch(() => {
+      if (requestId !== analysisRequest.current) return
+      setAnalysis({ status: 'unavailable' })
+      if (fullRound) setRoundAnalysis({ status: 'unavailable' })
+    }).finally(() => {
+      if (requestId === analysisRequest.current) analysisInFlight.current = false
+    })
+  }
+
+  function retryAnalysis() {
+    if (!completedStep || analysisInFlight.current) return
+    // Keep exactly the same last-step boundary; retry text, never apply decisions again.
+    const previous = applied.filter(action => !completedStep.decisions.some(decision => decision.id === action.id))
+    requestAnalysis(applied, previous)
   }
 
   async function submitDecision() {
@@ -100,30 +131,16 @@ function Home() {
       const nextDistricts = presentDistricts(response.result.districts)
       setDistricts(nextDistricts)
       setCompletedStep({ before: districts, after: nextDistricts, decisions: draft, synergies: response.result.synergies })
-      setAnalysis({ status: 'loading' })
       if (response.complete) {
         setRoundResult(response.result)
         // A single submission of all five first shows its step result and GPT text.
         setSummaryOpen(applied.length > 0)
         setScore(response.result.finalScore)
         setMessage('Раунд завершён · Score ' + formatScore(response.result.finalScore) + ' (' + (response.result.scoreDelta >= 0 ? '+' : '') + formatScore(response.result.scoreDelta) + ')')
-        setRoundAnalysis({ status: 'loading' })
       } else {
         setMessage('Применено решений: ' + cumulative.length + ' / 5')
       }
-      const requestId = ++analysisRequest.current
-      void explainCityActions({ data: {
-        actions: cumulative.map(({ id, ...target }) => ({ measureId: id, ...target })),
-        previousActions: applied.map(({ id, ...target }) => ({ measureId: id, ...target })),
-      } }).then(explanation => {
-        if (requestId !== analysisRequest.current) return
-        setAnalysis(analysisMessage(explanation.step))
-        if (explanation.round) setRoundAnalysis(analysisMessage(explanation.round))
-      }).catch(() => {
-        if (requestId !== analysisRequest.current) return
-        setAnalysis({ status: 'unavailable' })
-        if (response.complete) setRoundAnalysis({ status: 'unavailable' })
-      })
+      requestAnalysis(cumulative, applied)
     } catch {
       setMessage('Не удалось получить расчёт. Выбор сохранён — повторите отправку. Проверьте локальный сервер приложения.')
     } finally {
@@ -171,7 +188,7 @@ function Home() {
         </aside>
 
         <section className="decision-dock hud-panel" ref={dock} aria-label={completedStep ? 'Результат хода' : 'Выбор инициативы'}>
-          {completedStep ? <ActionResult key={selectedDistrict.id} before={completedStep.before.find(district => district.id === selectedDistrict.id)!} after={completedStep.after.find(district => district.id === selectedDistrict.id)!} decisions={completedStep.decisions} synergies={completedStep.synergies} appliedCount={applied.length} analysis={analysis} onContinue={() => { setCompletedStep(null); setMessage(''); requestAnimationFrame(() => document.getElementById('initiative-tab-' + selectedTab)?.focus()) }} onNewRound={resetRound} onSummary={() => setSummaryOpen(true)} /> : <>
+          {completedStep ? <ActionResult key={selectedDistrict.id} before={completedStep.before.find(district => district.id === selectedDistrict.id)!} after={completedStep.after.find(district => district.id === selectedDistrict.id)!} decisions={completedStep.decisions} synergies={completedStep.synergies} appliedCount={applied.length} analysis={analysis} onRetryAnalysis={retryAnalysis} onContinue={() => { setCompletedStep(null); setMessage(''); requestAnimationFrame(() => document.getElementById('initiative-tab-' + selectedTab)?.focus()) }} onNewRound={resetRound} onSummary={() => setSummaryOpen(true)} /> : <>
           <div className="initiative-tabs" role="tablist" aria-label="Категории инициатив">{initiativeTabs.map(tab => {
             const Icon = directionIcons[tab.id]
             const count = allSelections.filter(selection => belongsToTab(initiatives.find(item => item.id === selection.id)!, tab.id)).length
@@ -224,7 +241,7 @@ function Home() {
         <MapPin size={23} strokeWidth={1.6} aria-hidden="true" />
         <div><strong>С какого района начнём?</strong><p>Выберите район на карте, чтобы перейти к действиям</p></div>
       </div>}
-      {roundResult && <RoundSummary result={roundResult} open={summaryOpen} analysis={roundAnalysis} onClose={() => { setSummaryOpen(false); requestAnimationFrame(() => document.getElementById('round-summary-open')?.focus()) }} onNewRound={resetRound} />}
+      {roundResult && <RoundSummary result={roundResult} open={summaryOpen} analysis={roundAnalysis} onRetryAnalysis={retryAnalysis} onClose={() => { setSummaryOpen(false); requestAnimationFrame(() => document.getElementById('round-summary-open')?.focus()) }} onNewRound={resetRound} />}
     </main>
   )
 }

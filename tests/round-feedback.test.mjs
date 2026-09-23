@@ -46,14 +46,16 @@ test('congratulations do not claim growth when score fell or remained unchanged'
   assert.match(roundFeedback({ ...result, finalScore: result.baselineScore, scoreDelta: 0 }).conclusion, /Score сохранился/)
 })
 
-test('summary is an accessible dialog with all districts, total changes and round controls', () => {
-  const html = renderToStaticMarkup(createElement(RoundSummary, { result: simulate(EXAMPLE_SCENARIO), open: false, analysis: { status: 'loading' }, onClose() {}, onNewRound() {} }))
+test('summary keeps city results and report refresh without the district table or unchanged count', () => {
+  const html = renderToStaticMarkup(createElement(RoundSummary, { result: simulate(EXAMPLE_SCENARIO), open: false, analysis: { status: 'ready', text: 'Город стал лучше.' }, onClose() {}, onNewRound() {}, onRetryAnalysis() {} }))
   assert.match(html, /<dialog[^>]*aria-labelledby="round-summary-title"/)
   assert.match(html, /52,56/)
   assert.match(html, /56,54/)
-  for (const district of ['Есиль', 'Алматы', 'Сарыарка', 'Байконур', 'Нура']) assert.match(html, new RegExp(district))
+  assert.doesNotMatch(html, /<table|Результат по районам|Индекс D до и после решений|Без изменений:/)
+  for (const category of ['Транспорт', 'Экология', 'Социальная сфера', 'Безопасность', 'Сервисы']) assert.match(html, new RegExp(category))
   assert.match(html, /Поздравляем с завершением раунда/)
   assert.match(html, /Вернуться к карте/)
   assert.match(html, /Новый раунд/)
   assert.match(html, /Объяснение GPT за раунд/)
+  assert.match(html, /Обновить отчёт GPT за раунд/)
 })

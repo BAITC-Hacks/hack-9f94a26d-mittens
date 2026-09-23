@@ -19,9 +19,10 @@ type ActionResultProps = {
   onContinue: () => void
   onNewRound: () => void
   onSummary: () => void
+  onRetryAnalysis: () => void
 }
 
-export function ActionResult({ before, after, decisions, appliedCount, analysis, synergies, onContinue, onNewRound, onSummary }: ActionResultProps) {
+export function ActionResult({ before, after, decisions, appliedCount, analysis, synergies, onContinue, onNewRound, onSummary, onRetryAnalysis }: ActionResultProps) {
   const feedback = actionFeedback(before, after)
   const [selected, setSelected] = useState(() => strongestDirection(feedback))
   const current = feedback.find(item => item.id === selected)!
@@ -56,7 +57,7 @@ export function ActionResult({ before, after, decisions, appliedCount, analysis,
       <p className="result-note">Изменения за последний ход, с учётом ранее применённых мер.</p>
     </section>
 
-    <AIExplanation message={analysis} />
+    <AIExplanation message={analysis} onRetry={onRetryAnalysis} />
     <div className="result-footer">
       <span>{complete ? 'Все 5 решений применены' : 'Можно перейти к следующему решению'}</span>
       <div className="result-buttons">
