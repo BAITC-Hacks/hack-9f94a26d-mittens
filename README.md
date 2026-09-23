@@ -78,8 +78,8 @@ VITE_API_BASE_URL=http://localhost:8000
 несовместимости проверяются с учётом района. Остаток бюджета допустим и не даёт бонуса.
 Недоступные меры показывают причину. Район каждой районной меры можно выбрать в выпадающем списке до или после добавления. Несовместимые районы для уже выбранной меры недоступны.
 
-Backend не входит в этот репозиторий. Его прежний контракт с одиночным `decision`
-нужно обновить для массива `decisions` выше: повторно проверить полный набор и
+В репозитории есть детерминированный движок и endpoints оптимизации (см. Optimizer ниже).
+Внешний backend для интерфейса должен поддерживать массив `decisions` выше: повторно проверить полный набор и
 рассчитать его от исходных данных, а не накопительно. Повторная отправка того же
 набора не должна повторно списывать бюджет. До ответа сервиса QoL не отображается;
 показатели районов до расчёта остаются синтетическими демонстрационными данными.
@@ -94,4 +94,72 @@ npm run build
 ```
 
 Тесты проверяют бюджет (включая ровно 100), число мер, повторения, направления,
-районы, несовместимости и удаление мер. Расчёт Score остаётся ответственностью backend.
+районы, несовместимости и удаление мер. Тесты движка также проверяют Score, точный оптимум и 694395 допустимых наборов.
+
+## Optimizer
+
+The backend uses the existing TypeScript/TanStack Start stack. The pure optimizer
+is in `src/simulator/optimizer.ts`, next to `validateScenario()` and `scoreCity()`;
+there is no separate Python runtime. `data/engine.json` is the engine's static
+five-district dataset from AGENTS.md. The frontend's six-district demonstration
+and external `/api/simulation/decision` integration are separate and unchanged.
+
+`optimize(constraints = null, top_n = 10)` visits all 2,002 five-measure combinations,
+prunes budget/direction/global incompatibility failures, enumerates every allowed
+district assignment, runs the full existing validator, and scores valid sets with
+the shared effect and score functions. A bounded heap retains only the top N.
+Because every feasible assignment is examined, the optimum is exact; no LLM, ML,
+or heuristics are involved. Lag-scaled effects are precomputed. At larger scale,
+this could move to ILP (with suitable linearization) or a genetic algorithm
+(which would sacrifice the exact-optimum guarantee).
+
+Start with `npm run dev` and use the endpoints at `http://localhost:3000`:
+
+```bash
+curl -s http://localhost:3000/optimize \
+  -H 'Content-Type: application/json' \
+  -d '{"top_n":3}'
+
+curl -s http://localhost:3000/optimize \
+  -H 'Content-Type: application/json' \
+  -d '{"constraints":{"budget":95,"include":[{"id":"M8","district":"Nura"}],"exclude":["M3"],"exclude_districts":["Esil"],"min_directions":4,"direction_min":{"B":1},"direction_max":{"T":1},"max_per_district":2},"top_n":3}'
+
+curl -s http://localhost:3000/counterfactual \
+  -H 'Content-Type: application/json' \
+  -d '{"set":[{"id":"M7","district":"Nura"},{"id":"M8","district":"Nura"},{"id":"M10","district":"Nura"},{"id":"M12","district":null},{"id":"M5","district":"Saryarka"}],"top_k":3}'
+```
+
+All constraints are optional. Budget is an integer from 0 to 100; direction keys
+are `T`, `E`, `S`, `B`, `C`. An included regional measure without a district can
+target any permitted district. City measures use `null` or omit the district.
+`max_per_district` counts only regional measures. Constraints never relax the base
+rules. Impossible constraints return `[]` from the pure function and HTTP 422 with
+an `error` message from `/optimize`; malformed requests also return 422.
+
+Results contain `measures`, `cost`, `score`, `d_avg`, `district_scores`, and `n_crit`.
+Order is score descending, cost ascending, then sorted IDs lexicographically
+(`M10` precedes `M2`); district assignments break remaining ties lexicographically.
+Scores retain full precision. Counterfactuals enumerate every valid single measure
+replacement or district change, returning the same fields plus `score_delta`,
+`removed`, and `added`. They exclude the unchanged set and may return negative
+deltas when no improvement is possible.
+
+The server entry precomputes and caches the unconstrained top 10 at startup per
+process. Smaller requests reuse the cache; a larger request expands it. Constrained
+requests run a fresh search. The pure optimizer always runs a fresh search.
+
+Validation and reproducible timing:
+
+```bash
+node --import tsx --test tests/*.test.mjs src/server/*.test.ts src/simulator/*.test.ts
+node --import tsx src/simulator/optimizer.bench.ts
+npx tsc --noEmit
+npm run build
+```
+
+The full search measured approximately **2.93 seconds** locally (uncached, Node 24.13.1), below
+the 5-second target. `count_valid()` returns **694395**. The best set is M2,
+M3 Nura, M8 Nura, M9 Nura, M14: cost **98**, score **57.236735** (rounded **57.24**).
+The repository recommends Node 20; it was unavailable at the documented Homebrew path
+in the verification environment. Tests, type checking, and build passed on Node 24.
+The benchmark exits unsuccessfully if the uncached search takes 5 seconds or more.

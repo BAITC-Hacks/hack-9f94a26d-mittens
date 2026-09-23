@@ -1,9 +1,10 @@
+import data from '../../data/engine.json'
 import { getMeasure, INCOMPATIBILITIES } from './measures'
 import { DISTRICT_IDS } from './types'
 import type { Action, Category, DistrictId, Scenario } from './types'
 
-export const TOTAL_BUDGET = 100
-export const REQUIRED_ACTIONS = 5
+export const TOTAL_BUDGET = data.budget
+export const REQUIRED_ACTIONS = data.count
 
 export class ScenarioValidationError extends Error {
   constructor(message: string) {
@@ -30,7 +31,7 @@ export function validateScenario(input: unknown): Scenario {
     if (seen.has(measure.id)) return invalid(`Повтор меры (duplicate): ${measure.id}. Каждую меру можно выбрать только один раз.`)
     seen.add(measure.id)
     const count = (categories.get(measure.category) ?? 0) + 1
-    if (count > 2) return invalid(`Не более 2 мер из категории ${measure.category}.`)
+    if (count > data.perDirection) return invalid(`Не более 2 мер из категории ${measure.category}.`)
     categories.set(measure.category, count)
     cost += measure.cost
     if (measure.scope === 'district') {
@@ -39,7 +40,7 @@ export function validateScenario(input: unknown): Scenario {
       }
       return { measureId: measure.id, district: value.district as DistrictId }
     }
-    // City measures need no district; discard an optional client-supplied one.
+    if (value.district != null) return invalid(`Для общегородской меры ${measure.id} район запрещён.`)
     return { measureId: measure.id }
   })
   if (cost > TOTAL_BUDGET) return invalid(`Превышен бюджет (budget): ${cost} из ${TOTAL_BUDGET}.`)

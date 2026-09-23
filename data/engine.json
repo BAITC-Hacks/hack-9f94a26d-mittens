@@ -1,0 +1,315 @@
+{
+  "measures": [
+    {
+      "id": "M1",
+      "category": "transport",
+      "name": "Dedicated bus lanes",
+      "scope": "district",
+      "cost": 18,
+      "lag": 2,
+      "effects": {
+        "T1": 6,
+        "T2": 9
+      }
+    },
+    {
+      "id": "M2",
+      "category": "transport",
+      "name": "Smart traffic lights",
+      "scope": "city",
+      "cost": 22,
+      "lag": 2,
+      "effects": {
+        "T1": 4,
+        "B2": 3
+      }
+    },
+    {
+      "id": "M3",
+      "category": "transport",
+      "name": "LRT line / expansion",
+      "scope": "district",
+      "cost": 30,
+      "lag": 4,
+      "effects": {
+        "T1": 16,
+        "T2": 20,
+        "E2": 4
+      }
+    },
+    {
+      "id": "M4",
+      "category": "ecology",
+      "name": "Park / public square",
+      "scope": "district",
+      "cost": 15,
+      "lag": 2,
+      "effects": {
+        "E1": 12,
+        "E2": 3,
+        "B1": 2
+      }
+    },
+    {
+      "id": "M5",
+      "category": "ecology",
+      "name": "Convert private-sector heating to clean fuel",
+      "scope": "district",
+      "cost": 25,
+      "lag": 3,
+      "effects": {
+        "E2": 14,
+        "C1": 4
+      }
+    },
+    {
+      "id": "M6",
+      "category": "ecology",
+      "name": "City greening and windbreak program",
+      "scope": "city",
+      "cost": 20,
+      "lag": 4,
+      "effects": {
+        "E1": 5,
+        "E2": 3
+      }
+    },
+    {
+      "id": "M7",
+      "category": "social",
+      "name": "School + kindergarten",
+      "scope": "district",
+      "cost": 24,
+      "lag": 3,
+      "effects": {
+        "S1": 16
+      }
+    },
+    {
+      "id": "M8",
+      "category": "social",
+      "name": "Family health center / clinic",
+      "scope": "district",
+      "cost": 20,
+      "lag": 3,
+      "effects": {
+        "S2": 14
+      }
+    },
+    {
+      "id": "M9",
+      "category": "social",
+      "name": "Neighborhood sports hubs",
+      "scope": "district",
+      "cost": 10,
+      "lag": 1,
+      "effects": {
+        "S1": 3,
+        "S2": 3,
+        "B1": 3
+      }
+    },
+    {
+      "id": "M10",
+      "category": "safety",
+      "name": "Lighting and cameras / Safe City",
+      "scope": "district",
+      "cost": 12,
+      "lag": 1,
+      "effects": {
+        "B1": 12,
+        "B2": 2
+      }
+    },
+    {
+      "id": "M11",
+      "category": "safety",
+      "name": "Safe pedestrian crossings and school zones",
+      "scope": "district",
+      "cost": 10,
+      "lag": 1,
+      "effects": {
+        "B2": 12,
+        "T1": -2
+      }
+    },
+    {
+      "id": "M12",
+      "category": "services",
+      "name": "Unified digital citizen request platform",
+      "scope": "city",
+      "cost": 14,
+      "lag": 1,
+      "effects": {
+        "C2": 5
+      }
+    },
+    {
+      "id": "M13",
+      "category": "services",
+      "name": "Heating and water network modernization",
+      "scope": "district",
+      "cost": 28,
+      "lag": 4,
+      "effects": {
+        "C1": 18,
+        "E2": 2
+      }
+    },
+    {
+      "id": "M14",
+      "category": "services",
+      "name": "Utility emergency teams + early warning",
+      "scope": "city",
+      "cost": 16,
+      "lag": 1,
+      "effects": {
+        "C1": 5,
+        "C2": 2
+      }
+    }
+  ],
+  "synergies": [
+    {
+      "districtMeasure": "M1",
+      "cityMeasure": "M2",
+      "effects": {
+        "T1": 2
+      }
+    },
+    {
+      "districtMeasure": "M10",
+      "cityMeasure": "M12",
+      "effects": {
+        "B1": 2
+      }
+    },
+    {
+      "districtMeasure": "M5",
+      "cityMeasure": "M6",
+      "effects": {
+        "E2": 2
+      }
+    }
+  ],
+  "incompatibilities": [
+    {
+      "measures": [
+        "M1",
+        "M3"
+      ],
+      "scope": "city"
+    },
+    {
+      "measures": [
+        "M4",
+        "M7"
+      ],
+      "scope": "district"
+    },
+    {
+      "measures": [
+        "M5",
+        "M13"
+      ],
+      "scope": "district"
+    }
+  ],
+  "districts": {
+    "Esil": {
+      "populationShare": 0.27,
+      "indicators": {
+        "T1": 45,
+        "T2": 62,
+        "E1": 68,
+        "E2": 72,
+        "S1": 48,
+        "S2": 55,
+        "B1": 78,
+        "B2": 60,
+        "C1": 75,
+        "C2": 70
+      }
+    },
+    "Almaty": {
+      "populationShare": 0.24,
+      "indicators": {
+        "T1": 40,
+        "T2": 75,
+        "E1": 50,
+        "E2": 55,
+        "S1": 60,
+        "S2": 65,
+        "B1": 62,
+        "B2": 52,
+        "C1": 50,
+        "C2": 60
+      }
+    },
+    "Saryarka": {
+      "populationShare": 0.2,
+      "indicators": {
+        "T1": 50,
+        "T2": 70,
+        "E1": 42,
+        "E2": 40,
+        "S1": 62,
+        "S2": 68,
+        "B1": 58,
+        "B2": 55,
+        "C1": 45,
+        "C2": 55
+      }
+    },
+    "Baikonur": {
+      "populationShare": 0.13,
+      "indicators": {
+        "T1": 52,
+        "T2": 68,
+        "E1": 55,
+        "E2": 50,
+        "S1": 58,
+        "S2": 60,
+        "B1": 52,
+        "B2": 58,
+        "C1": 55,
+        "C2": 58
+      }
+    },
+    "Nura": {
+      "populationShare": 0.16,
+      "indicators": {
+        "T1": 55,
+        "T2": 40,
+        "E1": 45,
+        "E2": 65,
+        "S1": 38,
+        "S2": 35,
+        "B1": 55,
+        "B2": 50,
+        "C1": 60,
+        "C2": 50
+      }
+    }
+  },
+  "indicatorWeights": {
+    "T1": 0.1,
+    "T2": 0.1,
+    "E1": 0.09,
+    "E2": 0.11,
+    "S1": 0.11,
+    "S2": 0.11,
+    "B1": 0.09,
+    "B2": 0.09,
+    "C1": 0.1,
+    "C2": 0.1
+  },
+  "scoreWeights": {
+    "average": 0.7,
+    "minimum": 0.3
+  },
+  "budget": 100,
+  "count": 5,
+  "perDirection": 2,
+  "horizon": 8
+}
