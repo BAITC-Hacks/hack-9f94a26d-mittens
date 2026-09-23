@@ -51,6 +51,7 @@ function Home() {
   const [districts, setDistricts] = useState(initialDistricts)
   const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null)
   const [selections, setSelections] = useState<Selection[]>([])
+  const [campaignDistricts, setCampaignDistricts] = useState<Record<string, string>>({})
   const [selectedDirection, setSelectedDirection] = useState<string | null>(null)
   const directionHeading = useRef<HTMLHeadingElement>(null)
   const lastDirection = useRef<string | null>(null)
@@ -156,10 +157,35 @@ function Home() {
             <button className="category-back" type="button" onClick={() => setSelectedDirection(null)}><ChevronLeft size={16} aria-hidden="true" /> Все категории</button>
             <div className="initiative-list" aria-label={'Инициативы: ' + directionLabels[selectedDirection]} key={selectedDirection}>
               {initiatives.filter((initiative) => initiative.direction === selectedDirection).map((initiative) => {
-                const selected = selections.some(item => item.id === initiative.id)
-                const candidate: Selection = initiative.type === 'R' ? { id: initiative.id, district: districtIds[selectedDistrict.id] } : { id: initiative.id }
+                const existing = selections.find(item => item.id === initiative.id)
+                const selected = Boolean(existing)
+                const campaignDistrict = existing?.district ?? campaignDistricts[initiative.id] ?? districtIds[selectedDistrict.id]
+                const candidate: Selection = initiative.type === 'R' ? { id: initiative.id, district: campaignDistrict } : { id: initiative.id }
                 const reason = selected ? null : validateSelection([...selections, candidate], campaignData)
-                return <button className={'initiative' + (selected ? ' selected' : '')} aria-pressed={selected} disabled={Boolean(reason) || isSending} key={initiative.id} onClick={() => {
+                return <div className="campaign-card" key={initiative.id}>
+                  {initiative.type === 'R' && <label className="campaign-district" htmlFor={'campaign-district-' + initiative.id}>
+                    Район
+                    <select id={'campaign-district-' + initiative.id} aria-label={'Район: ' + initiative.title} value={campaignDistrict} disabled={isSending} onChange={event => {
+                      const district = event.target.value
+                      if (existing) {
+                        const next = selections.map(item => item.id === initiative.id ? { ...item, district } : item)
+                        const error = validateSelection(next, campaignData)
+                        if (error) { setMessage(error); return }
+                        setSelections(next)
+                        setScore(null)
+                        setDistricts(initialDistricts)
+                        setMessage('')
+                      }
+                      setCampaignDistricts(current => ({ ...current, [initiative.id]: district }))
+                    }}>
+                      {campaignData.rules.districts.map(district => {
+                        const next = selections.filter(item => item.id !== initiative.id).concat({ id: initiative.id, district })
+                        const conflict = existing ? validateSelection(next, campaignData) : null
+                        return <option key={district} value={district} disabled={Boolean(conflict)}>{initialDistricts.find(item => districtIds[item.id] === district)?.name ?? district}{conflict ? ' — несовместимо' : ''}</option>
+                      })}
+                    </select>
+                  </label>}
+                  <button className={'initiative' + (selected ? ' selected' : '')} aria-pressed={selected} disabled={Boolean(reason) || isSending} key={initiative.id} onClick={() => {
                   setSelections(current => {
                     const next = selected ? current.filter(item => item.id !== initiative.id) : [...current, candidate]
                     return validateSelection(next, campaignData) ? current : next
@@ -168,11 +194,12 @@ function Home() {
                   setDistricts(initialDistricts)
                   setMessage('')
                 }} type="button">
-                  <span className="initiative-meta"><span>{initiative.id} · {initiative.type === 'C' ? 'Весь город' : selectedDistrict.name}</span><b>{initiative.cost} млрд ₸</b></span>
+                  <span className="initiative-meta"><span>{initiative.id} · {initiative.type === 'C' ? 'Весь город' : initialDistricts.find(item => districtIds[item.id] === campaignDistrict)?.name}</span><b>{initiative.cost} млрд ₸</b></span>
                   <strong>{initiative.title}</strong>
                   <small className="initiative-state">{selected ? <><Check size={14} aria-hidden="true" /> В сценарии · нажмите, чтобы убрать</> : 'Добавить в сценарий'}</small>
                   {reason && <small className="constraint-reason">{reason}</small>}
                 </button>
+                </div>
               })}
             </div>
           </> : <>

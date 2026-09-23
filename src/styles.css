@@ -178,3 +178,8 @@ svg { flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+.campaign-card { display: grid; gap: 6px; }
+.campaign-district { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #b1c2cf; font-size: .75rem; padding: 3px 1px; }
+.campaign-district select { min-width: 0; max-width: 75%; padding: 6px 9px; border: 1px solid var(--line); border-radius: 5px; background: #20313f; color: #e5edf3; font: inherit; }
+.campaign-district select:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
