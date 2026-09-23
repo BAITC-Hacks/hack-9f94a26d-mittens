@@ -1,11 +1,27 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import { AstanaMap } from '../components/AstanaMap'
+import campaignData from '../../data/campaigns.json'
+import { validateSelection } from '../lib/selection.mjs'
+
+type Selection = { id: string; district?: string }
 
 type IndicatorKey = 'transport' | 'green' | 'social' | 'safety' | 'service'
-type District = { id: string; name: string; population: string; indicators: Record<IndicatorKey, number> }
-type Initiative = { id: string; category: IndicatorKey; title: string; cost: number; description: string }
-type SimulationResponse = { budgetRemaining: number; qualityOfLifeScore: number; districts: District[]; analysis: string; event?: string }
+
+type District = {
+  id: string
+  name: string
+  population: string
+  indicators: Record<IndicatorKey, number>
+}
+
+type SimulationResponse = {
+  budgetRemaining: number
+  qualityOfLifeScore: number
+  districts: District[]
+  analysis: string
+  event?: string
+}
 
 const initialDistricts: District[] = [
   { id: 'saryarka', name: 'Сарыарка', population: '340 тыс.', indicators: { transport: 34, green: 46, social: 61, safety: 58, service: 48 } },
@@ -16,15 +32,14 @@ const initialDistricts: District[] = [
   { id: 'saraishyk', name: 'Сарайшык', population: '180 тыс.', indicators: { transport: 43, green: 48, social: 42, safety: 54, service: 46 } },
 ]
 
-const initiatives: Initiative[] = [
-  { id: 'brt', category: 'transport', title: 'BRT-коридор', cost: 18, description: 'Выделенная полоса и умные остановки' },
-  { id: 'park', category: 'green', title: 'Городской парк', cost: 12, description: 'Озеленение и общественное пространство' },
-  { id: 'school', category: 'social', title: 'Школа на 1 200 мест', cost: 22, description: 'Снижение нагрузки на инфраструктуру' },
-  { id: 'lights', category: 'safety', title: 'Умное освещение', cost: 10, description: 'Свет, камеры и безопасные маршруты' },
-  { id: 'service', category: 'service', title: 'Единый сервис района', cost: 8, description: 'Заявки жителей и городские услуги' },
-]
+const initiatives = campaignData.measures
+const districtIds: Record<string, string> = { saryarka: 'Saryarka', almaty: 'Almaty', yesil: 'Esil', baikonyr: 'Baikonur', nura: 'Nura', saraishyk: 'Saraishyk' }
+const directionLabels: Record<string, string> = { T: 'Транспорт', E: 'Экология', S: 'Социальная сфера', B: 'Безопасность', C: 'Сервисы' }
 
-const indicatorLabels: Record<IndicatorKey, string> = { transport: 'Транспорт', green: 'Озеленение', social: 'Инфраструктура', safety: 'Безопасность', service: 'Сервисы' }
+const indicatorLabels: Record<IndicatorKey, string> = {
+  transport: 'Транспорт', green: 'Озеленение', social: 'Инфраструктура', safety: 'Безопасность', service: 'Сервисы',
+}
+
 const indicatorOrder: IndicatorKey[] = ['transport', 'green', 'social', 'safety', 'service']
 
 export const Route = createFileRoute('/')({ component: Home })
@@ -32,43 +47,51 @@ export const Route = createFileRoute('/')({ component: Home })
 function Home() {
   const [districts, setDistricts] = useState(initialDistricts)
   const [selectedDistrictId, setSelectedDistrictId] = useState('saryarka')
-  const [selectedInitiativeId, setSelectedInitiativeId] = useState<string | null>(null)
-  const [budget, setBudget] = useState(100)
-  const [score, setScore] = useState(54)
-  const [message, setMessage] = useState('Выберите район на карте Астаны и направление развития. Границы — 2ГИС, население и показатели — игровые.')
+  const [selections, setSelections] = useState<Selection[]>([])
+  const budget = campaignData.rules.budget - selections.reduce((sum, item) => sum + initiatives.find(measure => measure.id === item.id)!.cost, 0)
+  const [score, setScore] = useState<number | null>(null)
+  const [message, setMessage] = useState('Добавьте 5 инициатив в пределах 100 млрд. Не более двух одного направления.')
   const [isSending, setIsSending] = useState(false)
 
   const selectedDistrict = districts.find((district) => district.id === selectedDistrictId) ?? districts[0]
-  const selectedInitiative = initiatives.find((initiative) => initiative.id === selectedInitiativeId)
-  const districtScore = (district: District) => Math.round(indicatorOrder.reduce((sum, key) => sum + district.indicators[key], 0) / indicatorOrder.length)
-  const average = useMemo(() => districtScore(selectedDistrict), [selectedDistrict])
-  const mapDistricts = useMemo(() => districts.map((district) => ({ ...district, score: districtScore(district) })), [districts])
+  const validationError = validateSelection(selections, campaignData, true)
+  const average = useMemo(() => Math.round(indicatorOrder.reduce((sum, key) => sum + selectedDistrict.indicators[key], 0) / indicatorOrder.length), [selectedDistrict])
+
+  const mapDistricts = useMemo(() => districts.map(district => ({ ...district, score: Math.round(indicatorOrder.reduce((sum, key) => sum + district.indicators[key], 0) / indicatorOrder.length) })), [districts])
 
   async function submitDecision() {
-    if (!selectedInitiative || isSending) return
-    if (selectedInitiative.cost > budget) { setMessage('Недостаточно бюджета для этой инициативы.'); return }
-    setIsSending(true); setMessage('Отправляем сценарий на backend для расчёта…')
+    if (isSending) return
+    const error = validateSelection(selections, campaignData, true)
+    if (error) { setMessage(error); return }
+    setIsSending(true)
+    setMessage('Отправляем сценарий на backend для расчёта…')
+    const payload = { sessionId: 'demo-team-01', decisions: selections }
+
     try {
       const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
       const response = await fetch(`${baseUrl}/api/simulation/decision`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: 'demo-team-01', budgetRemaining: budget, selectedDistrictId, decision: selectedInitiative, districts }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       })
       if (!response.ok) throw new Error('Calculation service returned an error')
       const result = (await response.json()) as SimulationResponse
-      setBudget(result.budgetRemaining); setScore(result.qualityOfLifeScore); setDistricts(result.districts)
-      setMessage(result.analysis || result.event || 'Расчёт получен от backend.'); setSelectedInitiativeId(null)
-    } catch { setMessage('Backend пока недоступен. Запустите сервис на http://localhost:8000 или задайте VITE_API_BASE_URL.') } finally { setIsSending(false) }
+      setScore(result.qualityOfLifeScore)
+      setDistricts(result.districts)
+      setMessage(result.analysis || result.event || 'Расчёт получен от backend.')
+    } catch {
+      setMessage('Backend пока недоступен. Запустите сервис на http://localhost:8000 или задайте VITE_API_BASE_URL.')
+    } finally {
+      setIsSending(false)
+    }
   }
 
   return (
     <main className="war-room">
       <aside className="intel-panel" aria-label="Панель развития города">
         <div className="intel-brand"><span>ASTANA</span><strong>Штаб управления</strong><small>Синтетическая модель районов</small></div>
-        <div className="city-score"><span>Astana Quality of Life</span><strong>{score}</strong><small>/100 · ход 1 из 5</small></div>
+        <div className="city-score"><span>Astana Quality of Life</span><strong>{score ?? '—'}</strong><small>/100 · выбрано {selections.length} из {campaignData.rules.count}</small></div>
         <div className="district-profile"><p className="panel-label">Выбранный район</p><h1>{selectedDistrict.name}</h1><span>{selectedDistrict.population} жителей</span><div className="district-index"><b>{average}</b><small>Индекс развития</small></div></div>
         <div className="indicator-list">{indicatorOrder.map((key) => <div className="indicator-row" key={key}><div><span>{indicatorLabels[key]}</span><b>{selectedDistrict.indicators[key]}</b></div><div className="meter"><i style={{ width: `${selectedDistrict.indicators[key]}%` }} /></div></div>)}</div>
-        <div className="intel-report"><span>Сводка аналитика</span><p>{message}</p></div>
+        <div className="intel-report"><span>Сводка аналитика</span><p role="status">{message}</p></div>
       </aside>
 
       <section className="command-map" aria-label="Карта Астаны">
@@ -78,9 +101,32 @@ function Home() {
         <div className="map-key"><i className="key-good" /> стабильно <i className="key-warning" /> зона риска <i className="key-danger" /> критично</div>
 
         <section className="decision-dock" aria-label="Выбор инициативы">
-          <div className="dock-head"><div><p className="panel-label">Приказ на ход</p><h2>Инициативы развития</h2></div><span>01 / 05</span></div>
-          <div className="initiative-list">{initiatives.map((initiative) => <button className={`initiative ${initiative.id === selectedInitiativeId ? 'selected' : ''}`} disabled={initiative.cost > budget || isSending} key={initiative.id} onClick={() => setSelectedInitiativeId(initiative.id)} type="button"><span>{indicatorLabels[initiative.category]}</span><strong>{initiative.title}</strong><small>{initiative.description}</small><b>₸ {initiative.cost} млрд</b></button>)}</div>
-          <div className="decision-footer"><p>{selectedInitiative ? `${selectedInitiative.title} → ${selectedDistrict.name}` : 'Выберите инициативу'}</p><button className="command-button" disabled={!selectedInitiative || isSending} onClick={submitDecision} type="button">{isSending ? 'Расчёт…' : 'Передать в штаб'}</button></div>
+          <div className="dock-head"><div><p className="panel-label">Приказ на ход</p><h2>Инициативы развития</h2></div><span>{selections.length} / {campaignData.rules.count}</span></div>
+          <div className="initiative-list">
+            {initiatives.map((initiative) => {
+              const selected = selections.some(item => item.id === initiative.id)
+              const candidate: Selection = initiative.type === 'R' ? { id: initiative.id, district: districtIds[selectedDistrictId] } : { id: initiative.id }
+              const reason = selected ? null : validateSelection([...selections, candidate], campaignData)
+              return <button className={`initiative ${selected ? 'selected' : ''}`} aria-pressed={selected} disabled={Boolean(reason) || isSending} key={initiative.id} onClick={() => {
+                setSelections(current => {
+                  const next = selected ? current.filter(item => item.id !== initiative.id) : [...current, candidate]
+                  return validateSelection(next, campaignData) ? current : next
+                })
+                setScore(null)
+                setDistricts(initialDistricts)
+                setMessage('Сценарий изменён. Добавьте ровно 5 инициатив и отправьте на расчёт.')
+              }} type="button"><span className="initiative-category">{initiative.id} · {directionLabels[initiative.direction]}</span><strong>{initiative.title}</strong><small>{selected ? 'Выбрано · нажмите, чтобы убрать' : initiative.type === 'C' ? 'Весь город' : selectedDistrict.name}</small><b>₸ {initiative.cost} млрд</b>{reason && <small className="constraint-reason">{reason}</small>}</button>
+
+            })}
+          </div>
+          <div className="decision-footer">
+            <ul className="selected-campaigns">{selections.map(selection => <li key={selection.id}>
+              <span>{initiatives.find(item => item.id === selection.id)?.title} → {selection.district ? initialDistricts.find(item => districtIds[item.id] === selection.district)?.name : 'Весь город'}</span>
+              <button type="button" disabled={isSending} aria-label={`Убрать ${selection.id}`} onClick={() => { setSelections(current => current.filter(item => item.id !== selection.id)); setScore(null); setDistricts(initialDistricts); setMessage('Сценарий изменён. Добавьте инициативу и повторите расчёт.') }}>Убрать</button>
+            </li>)}</ul>
+            <p>{validationError ?? 'Сценарий готов. Остаток бюджета не даёт бонуса.'}</p>
+            <button className="command-button" disabled={Boolean(validationError) || isSending} onClick={submitDecision} type="button">{isSending ? 'Считаем…' : 'Отправить сценарий на расчёт'}</button>
+          </div>
         </section>
       </section>
     </main>

@@ -2,7 +2,7 @@
 
 ## Product
 
-Desktop hackathon simulator where a player governs a synthetic model of Astana over five decisions. The player applies one initiative in each of five city-development directions and sees an immediate district-level consequence and an Astana Quality of Life Score.
+Desktop hackathon simulator where a player governs a synthetic model of Astana by selecting five initiatives from a catalog of fourteen. The player submits the complete scenario and sees district-level consequences and an Astana Quality of Life Score returned by the backend.
 
 ## Audience
 
@@ -21,4 +21,5 @@ Clear, civic, direct, optimistic without making unsupported real-world claims. A
 - Desktop-first MVP.
 - Russian UI.
 - 2GIS MapGL is a geographical visual layer only; game district values are synthetic.
-- Exactly five direction slots: transport, greenery, social infrastructure, safety, and city services.
+- Exactly five initiatives per scenario, with at most two in the same direction: transport, greenery, social infrastructure, safety, and city services. Budget and incompatibility rules are defined in `data/campaigns.json`.
+- Real 2GIS boundaries for all six Astana districts, including Saraishyk; district indicators and population are synthetic.
