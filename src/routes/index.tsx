@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AstanaMap } from '../components/AstanaMap'
 import campaignData from '../../data/campaigns.json'
 import { validateSelection } from '../lib/selection.mjs'
@@ -48,6 +48,9 @@ function Home() {
   const [districts, setDistricts] = useState(initialDistricts)
   const [selectedDistrictId, setSelectedDistrictId] = useState('saryarka')
   const [selections, setSelections] = useState<Selection[]>([])
+  const [selectedDirection, setSelectedDirection] = useState<string | null>(null)
+  const directionHeading = useRef<HTMLHeadingElement>(null)
+  const lastDirection = useRef<string | null>(null)
   const budget = campaignData.rules.budget - selections.reduce((sum, item) => sum + initiatives.find(measure => measure.id === item.id)!.cost, 0)
   const [score, setScore] = useState<number | null>(null)
   const [message, setMessage] = useState('Добавьте 5 инициатив в пределах 100 млрд. Не более двух одного направления.')
@@ -58,6 +61,15 @@ function Home() {
   const average = useMemo(() => Math.round(indicatorOrder.reduce((sum, key) => sum + selectedDistrict.indicators[key], 0) / indicatorOrder.length), [selectedDistrict])
 
   const mapDistricts = useMemo(() => districts.map(district => ({ ...district, score: Math.round(indicatorOrder.reduce((sum, key) => sum + district.indicators[key], 0) / indicatorOrder.length) })), [districts])
+
+  useEffect(() => {
+    if (selectedDirection) {
+      lastDirection.current = selectedDirection
+      directionHeading.current?.focus()
+    } else if (lastDirection.current) {
+      document.getElementById(`direction-${lastDirection.current}`)?.focus()
+    }
+  }, [selectedDirection])
 
   async function submitDecision() {
     if (isSending) return
@@ -101,9 +113,11 @@ function Home() {
         <div className="map-key"><i className="key-good" /> стабильно <i className="key-warning" /> зона риска <i className="key-danger" /> критично</div>
 
         <section className="decision-dock" aria-label="Выбор инициативы">
-          <div className="dock-head"><div><p className="panel-label">Приказ на ход</p><h2>Инициативы развития</h2></div><span>{selections.length} / {campaignData.rules.count}</span></div>
-          <div className="initiative-list">
-            {initiatives.map((initiative) => {
+          <div className="dock-head"><div><p className="panel-label">{selectedDirection ? 'Выберите инициативы' : 'Выберите категорию'}</p><h2 ref={directionHeading} tabIndex={-1}>{selectedDirection ? directionLabels[selectedDirection] : 'Направления развития'}</h2></div><span>{selections.length} / {campaignData.rules.count}</span></div>
+          {selectedDirection ? <>
+            <button className="category-back" type="button" onClick={() => setSelectedDirection(null)}><span aria-hidden="true">←</span> Все категории</button>
+            <div className="initiative-list" aria-label={`Инициативы: ${directionLabels[selectedDirection]}`} key={selectedDirection}>
+            {initiatives.filter((initiative) => initiative.direction === selectedDirection).map((initiative) => {
               const selected = selections.some(item => item.id === initiative.id)
               const candidate: Selection = initiative.type === 'R' ? { id: initiative.id, district: districtIds[selectedDistrictId] } : { id: initiative.id }
               const reason = selected ? null : validateSelection([...selections, candidate], campaignData)
@@ -118,7 +132,17 @@ function Home() {
               }} type="button"><span className="initiative-category">{initiative.id} · {directionLabels[initiative.direction]}</span><strong>{initiative.title}</strong><small>{selected ? 'Выбрано · нажмите, чтобы убрать' : initiative.type === 'C' ? 'Весь город' : selectedDistrict.name}</small><b>₸ {initiative.cost} млрд</b>{reason && <small className="constraint-reason">{reason}</small>}</button>
 
             })}
-          </div>
+            </div>
+          </> : <div className="category-list" aria-label="Категории инициатив">
+            {Object.entries(directionLabels).map(([direction, label]) => {
+              const measures = initiatives.filter((initiative) => initiative.direction === direction)
+              const selectedCount = selections.filter((selection) => measures.some((measure) => measure.id === selection.id)).length
+              return <button className={`category-button${selectedCount ? ' has-selections' : ''}`} id={`direction-${direction}`} key={direction} type="button" onClick={() => setSelectedDirection(direction)}>
+                <span><strong>{label}</strong><small>{measures.length} инициативы · выбрано {selectedCount} из {campaignData.rules.perDirection}</small></span>
+                <span className="category-chevron" aria-hidden="true">›</span>
+              </button>
+            })}
+          </div>}
           <div className="decision-footer">
             <ul className="selected-campaigns">{selections.map(selection => <li key={selection.id}>
               <span>{initiatives.find(item => item.id === selection.id)?.title} → {selection.district ? initialDistricts.find(item => districtIds[item.id] === selection.district)?.name : 'Весь город'}</span>

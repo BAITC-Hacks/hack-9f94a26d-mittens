@@ -26,6 +26,17 @@
 
 .decision-dock { max-height: calc(100dvh - 190px); display: flex; flex-direction: column; }
 .initiative-list { min-height: 100px; overflow-y: auto; padding: 3px; }
+.category-list { display: grid; gap: 6px; min-height: 100px; overflow-y: auto; margin: 12px 0; padding: 3px; }
+.category-button { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 60px; padding: 10px 12px; border: 1px solid #53635e; color: #eaf0ed; background: #2b3b3e; cursor: pointer; text-align: left; }
+.category-button:hover { border-color: #c59a45; background: #334548; }
+.category-button.has-selections { border-left: 3px solid #e0b54c; padding-left: 10px; }
+.category-button strong { display: block; font-size: 14px; }
+.category-button small { display: block; margin-top: 4px; color: #b9c8c1; font-size: 11px; }
+.category-chevron { color: #f1d274; font-size: 24px; }
+.category-back { display: flex; align-items: center; gap: 8px; align-self: flex-start; flex-shrink: 0; margin: 10px 3px 0; padding: 7px 0; border: 0; color: #f1d274; background: transparent; font-size: 12px; cursor: pointer; }
+.category-back:hover { color: #fff0b3; }
+.dock-head, .decision-footer { flex-shrink: 0; }
+.dock-head h2:focus { outline: none; }
 .initiative .constraint-reason { color: #ffbd9f; }
 .initiative:disabled { opacity: .65; }
 .selected-campaigns { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 8px; max-height: 150px; overflow-y: auto; }

@@ -23,6 +23,7 @@ Muted map layer with military-chart charcoal framing, brass budget details, and 
 - Modal: modal-task-dialog as a centered district inspection overlay.
 - Header: header-product-app.
 - Primary screen: map-first game workspace with persistent status rail.
+- Initiative selection: open a category first (transport, ecology, social, safety, services), then choose its initiatives. A back button returns to all categories; selection counts and the scenario summary persist across categories.
 - Text animation: text-no-animation.
 - Motion: only short feedback transitions; reduced-motion fallback.
 - Scroll: scroll-native.
