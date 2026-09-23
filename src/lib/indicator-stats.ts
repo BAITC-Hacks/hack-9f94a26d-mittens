@@ -9,6 +9,7 @@ export function directionScore(values: Indicators, keys: readonly IndicatorId[])
 }
 
 export const formatMetric = (value: number) => value.toLocaleString('ru-RU', { maximumFractionDigits: 3 })
+export const formatScore = (value: number) => value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export function metricChange(before: number, after: number) {
   const delta = Number((after - before).toFixed(3))

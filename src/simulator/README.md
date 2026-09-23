@@ -1,6 +1,6 @@
 # Simulation response / score explanation
 
-`simulate({ actions: [{ measureId, district? }, ...] })` validates and calculates exactly five measures. The frontend now calls the integrated TanStack Start function `simulateCity`, returning `{ ok: true, complete: true, result }` for five measures with the same data plus `aiAnalysis` / `aiError`. Invalid scenarios return `{ ok: false, error }`.
+`simulate({ actions: [{ measureId, district? }, ...] })` validates and calculates exactly five measures. The frontend calls the integrated TanStack Start function `simulateCity`, returning `{ ok: true, complete: true, result }` for five measures without waiting for GPT. Invalid scenarios return `{ ok: false, error }`. The separate `explainCityActions` function accepts cumulative `actions` and `previousActions`, recomputes last-step deltas, and returns optional `step` and completed `round` explanations (`aiAnalysis` / `aiError`), each capped at 50 words. It never changes the simulation result.
 
 `simulateProgress()` accepts a cumulative set of one to five measures. For one to four it returns `{ complete: false, result }` with only `districts`, `budget`, `actions`, `horizon`, and `synergies`; no final city Score. The server wraps this in `{ ok: true, ... }` without requesting AI analysis. Every call recomputes from the baseline, not the previously changed indicators. All rules except the final exact-five requirement apply to partial rounds. City measures must not include a district.
 

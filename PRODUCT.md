@@ -20,7 +20,8 @@ Clear, civic, direct, optimistic without making unsupported real-world claims. A
 
 - Desktop-first MVP.
 - Russian UI.
-- Bottom horizontal action tabs, including a separate citywide tab; a left statistics panel with five expandable pairs of raw indicators. Citywide measures retain their original direction for the two-per-direction limit.
+- Tall left statistics panel, compact top-right resources and a bottom-right action dock. Keep essential numbers/actions visible and optional district/plan descriptions in disclosures. Hide effect previews and round-rule information from initiative selection. Citywide measures retain their original direction for the two-per-direction limit.
+- After submission, replace cards with last-step direction deltas and a GPT explanation of at most 50 words. The final round report compares the entire round against baseline and ends with congratulations grounded in the actual result. A batch of all five first shows step results, with a button opening the whole-round report. Generated text loads separately and never changes or blocks calculated results.
 - 2GIS MapGL is a geographical visual layer only; game district values are synthetic.
 - Exactly five initiatives per scenario, with at most two in the same direction: transport, greenery, social infrastructure, safety, and city services. Budget and incompatibility rules are defined in `data/campaigns.json`.
 - Exactly five playable scenario districts: Esil, Almaty, Saryarka, Baikonur and Nura. Almaty's game territory is the geometric union of the current Almaty and Saraishyk boundaries from 2GIS, with one label and one set of actions. This is a scenario grouping, not an administrative change. Keep the five-district baseline and population shares unchanged.

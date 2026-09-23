@@ -80,7 +80,7 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect, bottomInset
           style: import.meta.env.VITE_2GIS_MAP_STYLE_ID?.trim() || BASE_MAP_STYLE,
           defaultBackgroundColor: '#f7f9fc',
           copyright: 'bottomLeft', scaleControl: 'bottomLeft',
-          padding: { top: 170, right: 40, bottom: 150, left: 40 },
+          padding: { top: 150, right: 40, bottom: 150, left: 40 },
         })
         map.on('styleload', () => {
           if (!disposed && map && !import.meta.env.VITE_2GIS_MAP_STYLE_ID?.trim()) {
@@ -113,8 +113,8 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect, bottomInset
       const selected = Boolean(selectedDistrictId)
       const bottom = selected ? Math.min(bottomInset + 20, height - 270) : 150
       session.map.setPadding(width <= 760
-        ? { top: 140, right: 20, bottom: selected ? bottom : 190, left: 20 }
-        : { top: 170, right: 50, bottom, left: selected ? (width <= 1100 ? 314 : 346) : 50 })
+        ? { top: 177, right: 20, bottom: selected ? bottom : 190, left: 20 }
+        : { top: 150, right: 50, bottom, left: selected ? (width <= 1100 ? 320 : 344) : 50 })
       const boundary = boundaries.find(entry => entry.id === selectedDistrictId)
       session.map.fitBounds(boundaryBounds(boundary ? [boundary] : boundaries), {
         padding: { top: 15, right: 15, bottom: 15, left: 15 }, maxZoom: 12.5,

@@ -27,10 +27,20 @@ test('official SDK receives calculated results and returns only an explanation',
     const body = JSON.parse(init!.body as string)
     assert.deepEqual(JSON.parse(body.input), result)
     assert.match(body.instructions, /Do not modify, recalculate, or invent numbers/)
+    assert.match(body.instructions, /at most 50 words/)
+    assert.equal(body.max_output_tokens, 350)
     assert.equal(body.store, false)
     return new Response(JSON.stringify({ object: 'response', status: 'completed', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Улучшилась доступность школ и поликлиник.', annotations: [] }] }] }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   })
   assert.deepEqual(await analyzeSimulation(result), { aiAnalysis: 'Улучшилась доступность школ и поликлиник.', aiError: null })
+})
+
+test('overlong completed provider output is capped to 50 words on the server', async (t) => {
+  withApiKey(t, 'test-key')
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({ object: 'response', status: 'completed', output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: Array.from({ length: 70 }, () => 'улучшение').join(' '), annotations: [] }] }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+  const analysis = await analyzeSimulation(simulate(EXAMPLE_SCENARIO))
+  assert.equal(analysis.aiError, null)
+  assert.equal(analysis.aiAnalysis!.split(/\s+/).length, 50)
 })
 
 test('API errors are non-fatal and do not expose provider details', async (t) => {

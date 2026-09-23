@@ -20,7 +20,7 @@ export function ChangeMeter({ label, before, after }: { label: string; before: n
 
 export function IndicatorStatistics({ before, after }: { before: Indicators; after: Indicators }) {
   return <>
-    <p className="indicator-comparison-note">Изменения к началу раунда</p>
+    <p className="indicator-comparison-note">0–100 · изменения к началу раунда</p>
     <div className="indicator-list">{INDICATOR_GROUPS.map(group => {
       const baseline = directionScore(before, group.indicators)
       const current = directionScore(after, group.indicators)
@@ -37,10 +37,14 @@ export function IndicatorStatistics({ before, after }: { before: Indicators; aft
           return <div className={'indicator-row' + (value < 40 ? ' critical' : '')} key={key}>
             <div className="indicator-title"><span className="indicator-code">{key}</span><span>{INDICATOR_LABELS[key]}</span><MetricValue before={before[key]} after={value} /></div>
             <ChangeMeter label={key + ' · ' + INDICATOR_LABELS[key]} before={before[key]} after={value} />
-            <p>{INDICATOR_DESCRIPTIONS[key]}</p>
-            {value < 40 && <small className="critical-label">Ниже 40 · штраф −1 к итоговому Score</small>}
+            {value < 40 && <small className="critical-label">Критично · ниже 40</small>}
           </div>
-        })}</div>
+        })}
+          <details className="indicator-help">
+            <summary>Что означают показатели?<ChevronDown size={12} aria-hidden="true" /></summary>
+            {group.indicators.map(key => <p key={key}><b>{key}</b> · {INDICATOR_DESCRIPTIONS[key]}</p>)}
+          </details>
+        </div>
       </details>
     })}</div>
   </>
