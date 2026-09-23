@@ -10,11 +10,11 @@ custom
 
 ## Profile source
 
-User direction: a realistic or illustrated Astana city skyline combined with a real 2GIS map, inspired by the readable territorial play of a city-building game rather than a direct visual copy of Clash of Clans.
+User direction: real 2GIS map of Astana with synthetic districts as eight-sided game zones; an economy overlay carries an RTS-like visual language and the development intelligence panel uses a dense grand-strategy command-room layout.
 
 ## Visual direction
 
-Soft sky and stone surfaces, deep blue civic ink, a single teal action accent, and synthetic district statuses in green/amber/red. The map is the primary canvas; a slim city-health rail sits on the left and a compact budget/turn card sits at top right.
+Muted map layer with military-chart charcoal framing, brass budget details, and green/amber/red synthetic district statuses. The 2GIS map is the primary canvas; a dense city-health intelligence rail sits on the left, a framed treasury overlay is at top right, and the initiative dock sits at lower right.
 
 ## Components
 
