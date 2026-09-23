@@ -1,4 +1,5 @@
 import { INITIAL_DISTRICTS } from './districts'
+import { describeIndicatorChange, explainScore } from './breakdown'
 import { getMeasure, SYNERGIES } from './measures'
 import { clampIndicator, scoreCity } from './scoring'
 import { DISTRICT_IDS, INDICATOR_IDS } from './types'
@@ -43,7 +44,7 @@ export function simulate(input: unknown): SimulationResult {
     const delta = {} as Indicators
     for (const key of INDICATOR_IDS) {
       delta[key] = final[key] - initial[key]
-      if (delta[key] !== 0) changes.push({ district, indicator: key, before: initial[key], after: final[key], delta: delta[key] })
+      if (delta[key] !== 0) changes.push(describeIndicatorChange(district, key, initial[key], final[key], districts[district].populationShare))
     }
     districtResults[district] = {
       populationShare: districts[district].populationShare,
@@ -57,6 +58,7 @@ export function simulate(input: unknown): SimulationResult {
     baselineScore: before.score, finalScore: after.score, scoreDelta: after.score - before.score,
     horizon: HORIZON, budget: { total: TOTAL_BUDGET, spent, remaining: TOTAL_BUDGET - spent },
     actions, districts: districtResults, scoring: { before, after },
+    scoreBreakdown: explainScore(before, after),
     criticalIndicatorsBefore: before.criticalIndicators, criticalIndicatorsAfter: after.criticalIndicators,
     changes, synergies,
   }
