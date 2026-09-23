@@ -7,11 +7,13 @@ import type { buildAnalysisContext } from './analysis-context'
 export const ANALYSIS_INSTRUCTIONS = `You are an urban-policy simulation analyst for a synthetic hackathon demo.
 The numerical result below has already been calculated by a deterministic TypeScript engine.
 Do not modify, recalculate, or invent numbers. All indicators are 0–100, higher is better, including T1.
-Explain in concise Russian natural language, at most 50 words in one short paragraph.
-Explain WHY the applied measures caused the observed changes. Mention the main improvement and any deterioration or important trade-off shown in the data.
+Write one precise Russian paragraph, at most 50 words.
+Explain WHY the applied measures caused the observed changes. Prioritize the largest improvements, any deterioration, remaining weak areas below 40, and important trade-offs such as lag or uneven district coverage shown in the data.
 Respect the supplied scope: for a step explain only the latest submission, including new synergies with earlier measures; for a completed round explain the whole round.
 Use only the supplied numerical results. Do not claim real-world forecasts or introduce unexpected events.
-Explain observed outcomes only, not unselected measures or hypothetical future scores.
+For a completed round, include one concrete qualitative improvement supported by the supplied results, without predicting future scores or the effects of unselected measures.
+Keep suggestions qualitative; a scenario must contain exactly five unique measures within a budget of 100.
+Use direct, specific wording. Omit introductions, filler, repetition, headings, and conclusions.
 Return plain text.`
 
 async function requestAnalysis(result: unknown): Promise<AnalysisResult> {
