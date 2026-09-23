@@ -1,0 +1,137 @@
+{
+  "measures": [
+    {
+      "id": "M1",
+      "direction": "T",
+      "title": "Автобусные полосы",
+      "type": "R",
+      "cost": 18
+    },
+    {
+      "id": "M2",
+      "direction": "T",
+      "title": "Умные светофоры",
+      "type": "C",
+      "cost": 22
+    },
+    {
+      "id": "M3",
+      "direction": "T",
+      "title": "Линия LRT",
+      "type": "R",
+      "cost": 30
+    },
+    {
+      "id": "M4",
+      "direction": "E",
+      "title": "Городской парк",
+      "type": "R",
+      "cost": 15
+    },
+    {
+      "id": "M5",
+      "direction": "E",
+      "title": "Чистое топливо для частного сектора",
+      "type": "R",
+      "cost": 25
+    },
+    {
+      "id": "M6",
+      "direction": "E",
+      "title": "Озеленение и ветрозащита",
+      "type": "C",
+      "cost": 20
+    },
+    {
+      "id": "M7",
+      "direction": "S",
+      "title": "Школа и детский сад",
+      "type": "R",
+      "cost": 24
+    },
+    {
+      "id": "M8",
+      "direction": "S",
+      "title": "Центр семейного здоровья",
+      "type": "R",
+      "cost": 20
+    },
+    {
+      "id": "M9",
+      "direction": "S",
+      "title": "Дворовые спортивные центры",
+      "type": "R",
+      "cost": 10
+    },
+    {
+      "id": "M10",
+      "direction": "B",
+      "title": "Освещение и камеры",
+      "type": "R",
+      "cost": 12
+    },
+    {
+      "id": "M11",
+      "direction": "B",
+      "title": "Безопасные переходы",
+      "type": "R",
+      "cost": 10
+    },
+    {
+      "id": "M12",
+      "direction": "C",
+      "title": "Цифровая платформа обращений",
+      "type": "C",
+      "cost": 14
+    },
+    {
+      "id": "M13",
+      "direction": "C",
+      "title": "Обновление тепловых и водных сетей",
+      "type": "R",
+      "cost": 28
+    },
+    {
+      "id": "M14",
+      "direction": "C",
+      "title": "Аварийные бригады",
+      "type": "C",
+      "cost": 16
+    }
+  ],
+  "rules": {
+    "budget": 100,
+    "count": 5,
+    "perDirection": 2,
+    "districts": [
+      "Esil",
+      "Almaty",
+      "Saryarka",
+      "Baikonur",
+      "Nura"
+    ],
+    "incompatible": [
+      {
+        "ids": [
+          "M1",
+          "M3"
+        ],
+        "sameDistrict": false
+      },
+      {
+        "ids": [
+          "M4",
+          "M7"
+        ],
+        "sameDistrict": true
+      },
+      {
+        "ids": [
+          "M5",
+          "M13"
+        ],
+        "sameDistrict": true
+      }
+    ]
+  }
+}
