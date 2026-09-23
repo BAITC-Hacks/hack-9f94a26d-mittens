@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { Activity, Building2, BusFront, Check, ChevronDown, Globe2, HeartPulse, Landmark, Layers3, MapPin, ShieldCheck, Trees, X } from 'lucide-react'
 import { AstanaMap } from '../components/AstanaMap'
+import { ThemeToggle } from '../components/ThemeToggle'
+import type { MapTheme } from '../lib/map-style'
 import { IndicatorStatistics, MetricValue } from '../components/IndicatorStatistics'
 import { InitiativeCard } from '../components/InitiativeCard'
 import { ActionResult } from '../components/ActionResult'
@@ -28,6 +30,15 @@ const selectionTarget = (selection: Selection) => selection.district ? initialDi
 export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
+  const [theme, setTheme] = useState<MapTheme>('dark')
+  useEffect(() => {
+    try { if (localStorage.getItem('akim-theme') === 'light') setTheme('light') } catch { /* Storage may be unavailable. */ }
+  }, [])
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    try { localStorage.setItem('akim-theme', next) } catch { /* Switching still works without persistence. */ }
+  }
   const [districts, setDistricts] = useState(initialDistricts)
   const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null)
   const [applied, setApplied] = useState<Selection[]>([])
@@ -149,9 +160,9 @@ function Home() {
   }
 
   return (
-    <main className={'city-workspace' + (selectedDistrict ? ' district-is-selected' : '')} style={{ '--dock-height': dockHeight + 'px' } as CSSProperties}>
+    <main data-theme={theme} className={'city-workspace' + (selectedDistrict ? ' district-is-selected' : '')} style={{ '--dock-height': dockHeight + 'px' } as CSSProperties}>
       <section className="command-map" aria-label="Карта Астаны">
-        <AstanaMap districts={districts} selectedDistrictId={selectedDistrictId} onSelect={selectDistrict} bottomInset={selectedDistrict ? dockHeight + 56 : 0} />
+        <AstanaMap theme={theme} districts={districts} selectedDistrictId={selectedDistrictId} onSelect={selectDistrict} bottomInset={selectedDistrict ? dockHeight + 56 : 0} />
       </section>
 
       <header className="city-hud">
@@ -160,6 +171,7 @@ function Home() {
           <div><h1>Астана</h1><p>Аким на 5 часов</p></div>
         </div>
         <div className="city-resources hud-panel" aria-label="Показатели сценария">
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <div className="resource budget-resource"><span>Бюджет</span><strong>{budget}<small> ед.</small></strong></div>
           <div className="resource"><span>Решения</span><strong>{applied.length}<small> / 5</small></strong></div>
           {score !== null && <div className="resource-score"><span>Итоговый Score</span><strong>{formatScore(score)}</strong></div>}

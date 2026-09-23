@@ -2,7 +2,7 @@
 
 ## Theme
 
-Light, full-screen city map with a dark translucent game HUD.
+Near-black, full-screen city map with a dark translucent game HUD.
 
 ## Selected Style Profile
 
@@ -14,7 +14,7 @@ User direction: Cities: Skylines II-inspired city management, blue accents, blac
 
 ## Visual direction
 
-White/off-white land, retained blue water and green parks, understated district outlines and a blue selected district. Compact floating black translucent panels replace the permanent sidebar. Blue is reserved for interactive/selected states and key resources. Use system typography, legible secondary labels, restrained borders and one consistent small radius. Translucency is an explicit user request, not decorative glass added by default.
+Near-black land and panels, muted night colors for water and parks, light road labels, understated district outlines and a blue selected district. Use the official 2GIS night style, with darker land overrides, not CSS inversion. Blue is reserved for interactive/selected states and key resources. Use system typography, legible secondary labels, restrained borders and one consistent small radius. Translucency is an explicit user request, not decorative glass added by default.
 
 ## Components
 
@@ -39,4 +39,4 @@ White/off-white land, retained blue water and green parks, understated district 
 - Districts: normal, selected, improving, critical.
 - Initiative cards: available, selected, completed, unavailable due to budget.
 - Map: loading, ready, explicit map/boundary error with retry. District polygons follow real 2GIS geometry; game indicators remain synthetic. Panning and zooming are enabled.
-- Map styling: use documented MapGL layer replacement for neutral land colors; keep roads, buildings, parks, water and 2GIS attribution intact. An optional published custom style UUID takes precedence.
+- Map styling: default to the official MapGL night style with matching land-layer IDs overridden to near-black; keep night roads, buildings, parks, water and 2GIS attribution intact. An optional published custom style UUID takes precedence. Dark initial backgrounds prevent a white loading flash; color-scheme is dark throughout the UI.
