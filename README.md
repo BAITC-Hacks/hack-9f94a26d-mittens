@@ -113,7 +113,7 @@ cp .env.example .env.local
 ```dotenv
 VITE_2GIS_MAP_KEY=78d2f035-6f08-47ac-815e-2dd5a00c652e
 VITE_2GIS_MAP_STYLE_ID=
-OPENAI_API_KEY=ваш_секретный_ключ_openai
+OPENAI_API_KEY= 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
 # Необязательно; значение по умолчанию показано ниже:
 OPENAI_MODEL=gpt-4.1-mini
 ```
