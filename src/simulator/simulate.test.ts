@@ -73,12 +73,12 @@ test('rejects malformed input, unknown IDs, missing or invalid districts and wro
   }
 })
 
-test('city measures do not need districts and cannot be restricted by supplied districts', () => {
+test('city measures must not specify a district and affect all five districts', () => {
   const actions = structuredClone(EXAMPLE_SCENARIO.actions)
   actions[3] = { measureId: 'M12', district: 'Nura' }
-  assert.deepEqual(validateScenario({ actions }).actions[3], { measureId: 'M12' })
-  assert.deepEqual(simulate({ actions }), simulate(EXAMPLE_SCENARIO))
-  for (const district of DISTRICT_IDS) close(simulate({ actions }).districts[district].delta.C2, 4.375)
+  assert.throws(() => validateScenario({ actions }), /район не указывается/)
+  assert.throws(() => simulate({ actions }), /район не указывается/)
+  for (const district of DISTRICT_IDS) close(simulate(EXAMPLE_SCENARIO).districts[district].delta.C2, 4.375)
 })
 
 test('rejects more than two measures in a category', () => {

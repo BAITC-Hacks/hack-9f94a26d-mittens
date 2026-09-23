@@ -1,6 +1,8 @@
 # Simulation response / score explanation
 
-`simulate({ actions: [{ measureId, district? }, ...] })` validates and calculates a complete scenario. The TanStack Start function `simulateCity` returns `{ ok: true, result }` with the same data plus `aiAnalysis` / `aiError`. Invalid scenarios return `{ ok: false, error }`. No frontend changes are needed to produce this backend response; a frontend must explicitly consume these fields to display them.
+`simulate({ actions: [{ measureId, district? }, ...] })` validates and calculates exactly five measures. The frontend now calls the integrated TanStack Start function `simulateCity`, returning `{ ok: true, complete: true, result }` for five measures with the same data plus `aiAnalysis` / `aiError`. Invalid scenarios return `{ ok: false, error }`.
+
+`simulateProgress()` accepts a cumulative set of one to five measures. For one to four it returns `{ complete: false, result }` with only `districts`, `budget`, `actions`, `horizon`, and `synergies`; no final city Score. The server wraps this in `{ ok: true, ... }` without requesting AI analysis. Every call recomputes from the baseline, not the previously changed indicators. All rules except the final exact-five requirement apply to partial rounds. City measures must not include a district.
 
 Existing fields remain available: `baselineScore`, `finalScore`, `scoreDelta`, `budget`, `districts`, `scoring`, `changes`, `synergies`, and critical-indicator counts. No values are rounded by the backend.
 

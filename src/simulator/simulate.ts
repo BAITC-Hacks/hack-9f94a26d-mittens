@@ -3,13 +3,29 @@ import { describeIndicatorChange, explainScore } from './breakdown'
 import { getMeasure, SYNERGIES } from './measures'
 import { clampIndicator, scoreCity } from './scoring'
 import { DISTRICT_IDS, INDICATOR_IDS } from './types'
-import type { DistrictId, Indicators, SimulationResult } from './types'
-import { TOTAL_BUDGET, validateScenario } from './validator'
+import type { DistrictId, Indicators, Scenario, SimulationResult } from './types'
+import { REQUIRED_ACTIONS, TOTAL_BUDGET, validateScenario } from './validator'
 
 export const HORIZON = 8
 
 export function simulate(input: unknown): SimulationResult {
-  const scenario = validateScenario(input)
+  return calculate(validateScenario(input))
+}
+
+// A partial round updates indicators, but is not an eligible final Score.
+export type SimulationProgress =
+  | { complete: true; result: SimulationResult }
+  | { complete: false; result: Pick<SimulationResult, 'districts' | 'budget' | 'actions' | 'horizon' | 'synergies'> }
+
+export function simulateProgress(input: unknown): SimulationProgress {
+  const scenario = validateScenario(input, false)
+  const result = calculate(scenario)
+  if (scenario.actions.length === REQUIRED_ACTIONS) return { complete: true, result }
+  const { districts, budget, actions, horizon, synergies } = result
+  return { complete: false, result: { districts, budget, actions, horizon, synergies } }
+}
+
+function calculate(scenario: Scenario): SimulationResult {
   const districts = structuredClone(INITIAL_DISTRICTS)
   const before = scoreCity(INITIAL_DISTRICTS)
   const synergies: SimulationResult['synergies'] = []

@@ -12,7 +12,7 @@ test('multiple selections, reference sets and order independence', () => {
   assert.equal(validateSelection([...optimum].reverse(), data, true), null)
   assert.equal(validateSelection([r('M7'),r('M8'),r('M10'),c('M12'),r('M5','Saryarka')], data, true), null)
 })
-test('exact count required only at submission', () => {
+test('exact count required only for a complete scored scenario', () => {
   assert.ok(validateSelection(optimum.slice(0, 4), data, true))
   assert.ok(validateSelection([...optimum, r('M10')], data))
 })
@@ -37,9 +37,11 @@ test('removal restores budget and releases constraints', () => {
   assert.ok(validateSelection([...full,r('M10')],data))
   assert.equal(validateSelection([...full.filter(item => item.id !== 'M3'),r('M10')],data,true),null)
 })
-test('Saraishyk supports district measures and local incompatibilities', () => {
-  const scenario = [c('M2'), r('M3', 'Saraishyk'), r('M8', 'Saraishyk'), r('M9', 'Saraishyk'), c('M14')]
-  assert.equal(validateSelection(scenario, data, true), null)
-  assert.ok(validateSelection([r('M4', 'Saraishyk'), r('M7', 'Saraishyk')], data))
-  assert.equal(validateSelection([r('M4', 'Saraishyk'), r('M7', 'Nura')], data), null)
+test('only the five scenario districts accept district measures', () => {
+  assert.deepEqual(data.rules.districts, ['Esil', 'Almaty', 'Saryarka', 'Baikonur', 'Nura'])
+  for (const district of data.rules.districts) {
+    const scenario = [c('M2'), r('M3', district), r('M8', district), r('M9', district), c('M14')]
+    assert.equal(validateSelection(scenario, data, true), null)
+  }
+  assert.ok(validateSelection([r('M4', 'Saraishyk')], data))
 })

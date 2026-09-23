@@ -1,6 +1,6 @@
 /** @typedef {{id: string, district?: string}} Selection */
 /**
- * Validate drafts as they grow, and require exactly five for submission.
+ * Validate a cumulative draft, requiring exactly five only for final scoring.
  * @param {Selection[]} selections
  * @param {{measures: {id: string, direction: string, type: string, cost: number}[], rules: {budget: number, count: number, perDirection: number, districts: string[], incompatible: {ids: string[], sameDistrict: boolean}[]}} data
  * @param {boolean} complete
@@ -30,4 +30,14 @@ export function validateSelection(selections, data, complete = false) {
     if (first && second && (!conflict.sameDistrict || first.district === second.district)) return `${first.id} и ${second.id} несовместимы${conflict.sameDistrict ? ' в одном районе' : ''}.`
   }
   return null
+}
+
+/**
+ * @param {Selection[]} applied
+ * @param {Selection[]} draft
+ * @param {Parameters<typeof validateSelection>[1]} data
+ */
+export function validateSubmission(applied, draft, data) {
+  if (!draft.length) return applied.length === data.rules.count ? 'Все 5 решений применены.' : 'Выберите хотя бы одну инициативу.'
+  return validateSelection([...applied, ...draft], data)
 }

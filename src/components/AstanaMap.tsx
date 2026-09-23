@@ -28,10 +28,11 @@ function colorFor(score: number) {
   return '#f0bc83'
 }
 
-export function AstanaMap({ districts, selectedDistrictId, onSelect }: {
+export function AstanaMap({ districts, selectedDistrictId, onSelect, bottomInset = 0 }: {
   districts: MapDistrict[]
   selectedDistrictId: string | null
   onSelect: (districtId: string) => void
+  bottomInset?: number
 }) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const layers = useRef<{ destroy: () => void }[]>([])
@@ -110,9 +111,10 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect }: {
       const width = mapContainer.current?.clientWidth ?? window.innerWidth
       const height = mapContainer.current?.clientHeight ?? window.innerHeight
       const selected = Boolean(selectedDistrictId)
+      const bottom = selected ? Math.min(bottomInset + 20, height - 270) : 150
       session.map.setPadding(width <= 760
-        ? { top: selected ? 245 : 140, right: 20, bottom: selected ? Math.min(height * .52, height - 300) + 80 : 190, left: 20 }
-        : { top: 170, right: selected ? (width <= 1100 ? 374 : 406) : 50, bottom: 150, left: selected ? (width <= 1100 ? 279 : 318) : 50 })
+        ? { top: 140, right: 20, bottom: selected ? bottom : 190, left: 20 }
+        : { top: 170, right: 50, bottom, left: selected ? (width <= 1100 ? 314 : 346) : 50 })
       const boundary = boundaries.find(entry => entry.id === selectedDistrictId)
       session.map.fitBounds(boundaryBounds(boundary ? [boundary] : boundaries), {
         padding: { top: 15, right: 15, bottom: 15, left: 15 }, maxZoom: 12.5,
@@ -121,7 +123,7 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect }: {
     fitDistrict()
     window.addEventListener('resize', fitDistrict)
     return () => window.removeEventListener('resize', fitDistrict)
-  }, [session, boundaries, selectedDistrictId])
+  }, [session, boundaries, selectedDistrictId, bottomInset])
 
   useEffect(() => {
     if (!session || !boundaries.length) return
@@ -144,8 +146,9 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect }: {
       button.type = 'button'
       button.className = 'district-map-label' + (selected ? ' selected' : '')
       button.setAttribute('aria-pressed', String(selected))
-      button.setAttribute('aria-label', district.name + ', индекс ' + district.score)
-      button.textContent = district.name + ' · ' + district.score
+      const scoreLabel = district.score.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      button.setAttribute('aria-label', district.name + ', индекс ' + scoreLabel)
+      button.textContent = district.name + ' · ' + scoreLabel
       button.style.setProperty('--district-color', color)
       button.onclick = () => onSelect(district.id)
       layers.current.push(new api.HtmlMarker(map, {
@@ -179,7 +182,7 @@ export function AstanaMap({ districts, selectedDistrictId, onSelect }: {
         {mapState === 'error' && <button type="button" onClick={() => setAttempt((value) => value + 1)}>Повторить загрузку</button>}
       </div>}
       {mapState === 'ready' && boundaryError && <div className="map-boundary-error" role="alert">{boundaryError} <button type="button" onClick={() => setAttempt((value) => value + 1)}>Повторить</button></div>}
-      <div className="map-source" role="status">{mapState === 'ready' ? boundaries.length ? '2ГИС · границы 6 районов · показатели игровые' : boundaryError ? '2ГИС · границы недоступны' : '2ГИС · загрузка границ районов…' : '2ГИС · Астана'}</div>
+      <div className="map-source" role="status">{mapState === 'ready' ? boundaries.length ? '2ГИС · ' + boundaries.length + ' районов сценария · показатели игровые' : boundaryError ? '2ГИС · границы недоступны' : '2ГИС · загрузка границ районов…' : '2ГИС · Астана'}</div>
     </div>
   )
 }

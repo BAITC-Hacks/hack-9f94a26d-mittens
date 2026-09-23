@@ -16,9 +16,10 @@ const invalid = (message: string): never => { throw new ScenarioValidationError(
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
 // Accept unknown input: the browser is never trusted for IDs, costs or scores.
-export function validateScenario(input: unknown): Scenario {
+export function validateScenario(input: unknown, requireComplete = true): Scenario {
   if (!isRecord(input) || !Array.isArray(input.actions)) return invalid('Сценарий должен содержать массив actions.')
-  if (input.actions.length !== REQUIRED_ACTIONS) return invalid('Выберите ровно 5 мер (exactly 5 measures).')
+  if (input.actions.length > REQUIRED_ACTIONS || (requireComplete && input.actions.length !== REQUIRED_ACTIONS)) return invalid('Выберите ровно 5 мер (exactly 5 measures).')
+  if (input.actions.length === 0) return invalid('Выберите хотя бы одну меру для применения.')
 
   const seen = new Set<string>()
   const categories = new Map<Category, number>()
@@ -39,7 +40,7 @@ export function validateScenario(input: unknown): Scenario {
       }
       return { measureId: measure.id, district: value.district as DistrictId }
     }
-    // City measures need no district; discard an optional client-supplied one.
+    if (value.district !== undefined) return invalid(`Для общегородской меры ${measure.id} район не указывается.`)
     return { measureId: measure.id }
   })
   if (cost > TOTAL_BUDGET) return invalid(`Превышен бюджет (budget): ${cost} из ${TOTAL_BUDGET}.`)

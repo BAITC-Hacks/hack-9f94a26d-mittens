@@ -1,121 +1,101 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Activity, Building2, BusFront, Check, ChevronLeft, ChevronRight, HeartPulse, Landmark, Layers3, MapPin, ShieldCheck, Trees, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { Activity, Building2, BusFront, Check, Globe2, HeartPulse, Landmark, MapPin, ShieldCheck, Trees, X } from 'lucide-react'
 import { AstanaMap } from '../components/AstanaMap'
+import { IndicatorStatistics, MetricValue } from '../components/IndicatorStatistics'
 import campaignData from '../../data/campaigns.json'
-import { validateSelection } from '../lib/selection.mjs'
+import { validateSelection, validateSubmission } from '../lib/selection.mjs'
+import { districtIds, districtScenarios, initialDistricts, presentDistricts } from '../lib/scenario-districts'
+import { belongsToTab, initiativeTabs, nextInitiativeTab } from '../lib/initiative-tabs'
+import type { InitiativeTabId } from '../lib/initiative-tabs'
+import { getMeasure } from '../simulator/measures'
+import { simulateCity } from '../server/simulateCity'
 
 type Selection = { id: string; district?: string }
-
-type IndicatorKey = 'transport' | 'green' | 'social' | 'safety' | 'service'
-
-type District = {
-  id: string
-  name: string
-  population: string
-  indicators: Record<IndicatorKey, number>
-}
-
-type SimulationResponse = {
-  budgetRemaining: number
-  qualityOfLifeScore: number
-  districts: District[]
-  analysis: string
-  event?: string
-}
-
-const initialDistricts: District[] = [
-  { id: 'saryarka', name: 'Сарыарка', population: '340 тыс.', indicators: { transport: 34, green: 46, social: 61, safety: 58, service: 48 } },
-  { id: 'almaty', name: 'Алматы', population: '410 тыс.', indicators: { transport: 52, green: 56, social: 38, safety: 62, service: 55 } },
-  { id: 'yesil', name: 'Есиль', population: '290 тыс.', indicators: { transport: 49, green: 63, social: 57, safety: 51, service: 65 } },
-  { id: 'baikonyr', name: 'Байқоңыр', population: '185 тыс.', indicators: { transport: 55, green: 31, social: 51, safety: 55, service: 45 } },
-  { id: 'nura', name: 'Нұра', population: '220 тыс.', indicators: { transport: 46, green: 50, social: 47, safety: 34, service: 52 } },
-  { id: 'saraishyk', name: 'Сарайшык', population: '180 тыс.', indicators: { transport: 43, green: 48, social: 42, safety: 54, service: 46 } },
-]
-
 const initiatives = campaignData.measures
-const districtIds: Record<string, string> = { saryarka: 'Saryarka', almaty: 'Almaty', yesil: 'Esil', baikonyr: 'Baikonur', nura: 'Nura', saraishyk: 'Saraishyk' }
-const directionLabels: Record<string, string> = { T: 'Транспорт', E: 'Экология', S: 'Социальная сфера', B: 'Безопасность', C: 'Сервисы' }
-
-const directionIcons = { T: BusFront, E: Trees, S: HeartPulse, B: ShieldCheck, C: Building2 }
-
-const indicatorLabels: Record<IndicatorKey, string> = {
-  transport: 'Транспорт', green: 'Озеленение', social: 'Инфраструктура', safety: 'Безопасность', service: 'Сервисы',
-}
-
-const indicatorOrder: IndicatorKey[] = ['transport', 'green', 'social', 'safety', 'service']
+const directionLabels: Record<string, string> = Object.fromEntries(initiativeTabs.map(tab => [tab.id, tab.label]))
+const directionIcons = { T: BusFront, E: Trees, S: HeartPulse, B: ShieldCheck, C: Building2, CITY: Globe2 }
+const formatValue = (value: number) => value.toLocaleString('ru-RU', { maximumFractionDigits: 3 })
+const formatScore = (value: number) => value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const selectionTarget = (selection: Selection) => selection.district ? initialDistricts.find(district => districtIds[district.id] === selection.district)!.name : 'Весь город'
 
 export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
   const [districts, setDistricts] = useState(initialDistricts)
   const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null)
-  const [selections, setSelections] = useState<Selection[]>([])
-  const [selectedDirection, setSelectedDirection] = useState<string | null>(null)
-  const directionHeading = useRef<HTMLHeadingElement>(null)
-  const lastDirection = useRef<string | null>(null)
-  const budget = campaignData.rules.budget - selections.reduce((sum, item) => sum + initiatives.find(measure => measure.id === item.id)!.cost, 0)
+  const [applied, setApplied] = useState<Selection[]>([])
+  const [draft, setDraft] = useState<Selection[]>([])
+  const [selectedTab, setSelectedTab] = useState<InitiativeTabId>('T')
   const [score, setScore] = useState<number | null>(null)
   const [message, setMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
-
-  const selectedDistrict = districts.find((district) => district.id === selectedDistrictId) ?? null
-  const validationError = validateSelection(selections, campaignData, true)
-  const average = selectedDistrict ? Math.round(indicatorOrder.reduce((sum, key) => sum + selectedDistrict.indicators[key], 0) / indicatorOrder.length) : 0
-
-  const mapDistricts = useMemo(() => districts.map(district => ({ ...district, score: Math.round(indicatorOrder.reduce((sum, key) => sum + district.indicators[key], 0) / indicatorOrder.length) })), [districts])
+  const dock = useRef<HTMLElement>(null)
+  const [dockHeight, setDockHeight] = useState(0)
+  const allSelections = [...applied, ...draft]
+  const budget = campaignData.rules.budget - allSelections.reduce((sum, item) => sum + initiatives.find(measure => measure.id === item.id)!.cost, 0)
+  const selectedDistrict = districts.find(district => district.id === selectedDistrictId) ?? null
+  const baselineDistrict = initialDistricts.find(district => district.id === selectedDistrictId)
+  const validationError = validateSubmission(applied, draft, campaignData)
+  const complete = applied.length === campaignData.rules.count
 
   useEffect(() => {
-    if (selectedDirection) {
-      lastDirection.current = selectedDirection
-      directionHeading.current?.focus()
-    } else if (lastDirection.current) {
-      document.getElementById(`direction-${lastDirection.current}`)?.focus()
-    }
-  }, [selectedDirection])
+    if (!dock.current) { setDockHeight(0); return }
+    const element = dock.current
+    const measure = () => setDockHeight(Math.ceil(element.getBoundingClientRect().height))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [selectedDistrictId])
 
-  const selectDistrict = useCallback((id: string) => {
-    lastDirection.current = null
-    setSelectedDirection(null)
-    setSelectedDistrictId(id)
-  }, [])
+  const selectDistrict = useCallback((id: string) => setSelectedDistrictId(id), [])
 
   function closeDistrict() {
-    lastDirection.current = null
-    setSelectedDirection(null)
     setSelectedDistrictId(null)
     document.getElementById('district-picker-' + selectedDistrictId)?.focus()
   }
 
+  function resetRound() {
+    setApplied([])
+    setDraft([])
+    setDistricts(initialDistricts)
+    setScore(null)
+    setMessage('Новый раунд. Бюджет — 100 единиц, нужно применить ровно 5 решений.')
+  }
+
   async function submitDecision() {
     if (isSending) return
-    const error = validateSelection(selections, campaignData, true)
+    const error = validateSubmission(applied, draft, campaignData)
     if (error) { setMessage(error); return }
+    const cumulative = [...applied, ...draft]
     setIsSending(true)
-    setMessage('Отправляем сценарий на backend для расчёта…')
-    const payload = { sessionId: 'demo-team-01', decisions: selections }
-
+    setMessage('Применяем выбранные меры…')
     try {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
-      const response = await fetch(`${baseUrl}/api/simulation/decision`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-      })
-      if (!response.ok) throw new Error('Calculation service returned an error')
-      const result = (await response.json()) as SimulationResponse
-      setScore(result.qualityOfLifeScore)
-      setDistricts(result.districts)
-      setMessage(result.analysis || result.event || 'Расчёт получен от backend.')
+      // Recompute the cumulative set from the baseline; no double effects or spending.
+      const response = await simulateCity({ data: { actions: cumulative.map(item => ({ measureId: item.id, ...(item.district ? { district: item.district } : {}) })) } })
+      if (!response.ok) { setMessage(response.error); return }
+      setApplied(cumulative)
+      setDraft([])
+      setDistricts(presentDistricts(response.result.districts))
+      if (response.complete) {
+        setScore(response.result.finalScore)
+        setMessage('Раунд завершён. Score ' + formatScore(response.result.finalScore) + '; изменение к базе: ' + (response.result.scoreDelta >= 0 ? '+' : '') + formatScore(response.result.scoreDelta) + '. ' + (response.result.aiAnalysis ?? response.result.aiError ?? ''))
+      } else {
+        setMessage('Применено ' + cumulative.length + ' из 5 решений. Показатели обновлены. Итоговый Score будет рассчитан после пятого решения.')
+      }
     } catch {
-      setMessage('Backend пока недоступен. Запустите сервис на http://localhost:8000 или задайте VITE_API_BASE_URL.')
+      setMessage('Не удалось получить расчёт. Выбор сохранён — повторите отправку. Проверьте локальный сервер приложения.')
     } finally {
       setIsSending(false)
     }
   }
 
   return (
-    <main className={'city-workspace' + (selectedDistrict ? ' district-is-selected' : '')}>
+    <main className={'city-workspace' + (selectedDistrict ? ' district-is-selected' : '')} style={{ '--dock-height': dockHeight + 'px' } as CSSProperties}>
       <section className="command-map" aria-label="Карта Астаны">
-        <AstanaMap districts={mapDistricts} selectedDistrictId={selectedDistrictId} onSelect={selectDistrict} />
+        <AstanaMap districts={districts} selectedDistrictId={selectedDistrictId} onSelect={selectDistrict} bottomInset={selectedDistrict ? dockHeight + 56 : 0} />
       </section>
 
       <header className="city-hud">
@@ -125,9 +105,9 @@ function Home() {
           <span className="simulation-label">Симулятор города</span>
         </div>
         <div className="city-resources hud-panel" aria-label="Показатели сценария">
-          <div className="resource budget-resource"><span>Доступный бюджет</span><strong>{budget}<small> млрд ₸</small></strong></div>
-          <div className="resource"><span>Инициативы</span><strong>{selections.length}<small> / {campaignData.rules.count}</small></strong></div>
-          <div className="resource"><span>Качество жизни</span><strong>{score ?? '—'}<small> / 100</small></strong></div>
+          <div className="resource budget-resource"><span>Бюджет с учётом выбора</span><strong>{budget}<small> ед.</small></strong></div>
+          <div className="resource"><span>Применено{draft.length ? ' · ещё ' + draft.length + ' выбрано' : ''}</span><strong>{applied.length}<small> / 5</small></strong></div>
+          <div className="resource"><span>Итоговый Score</span><strong>{score === null ? '—' : formatScore(score)}<small> / 100</small></strong></div>
         </div>
       </header>
 
@@ -138,69 +118,67 @@ function Home() {
             <button className="icon-button" type="button" onClick={closeDistrict} aria-label="Закрыть район"><X size={18} aria-hidden="true" /></button>
           </div>
           <h2>{selectedDistrict.name}</h2>
-          <p className="district-population">{selectedDistrict.population} жителей</p>
-          <div className="district-index"><Activity size={20} aria-hidden="true" /><span>Индекс развития</span><strong>{average}<small> / 100</small></strong></div>
-          <div className="indicator-list">{indicatorOrder.map((key) => <div className="indicator-row" key={key}>
-            <div><span>{indicatorLabels[key]}</span><b>{selectedDistrict.indicators[key]}</b></div>
-            <div className="meter" role="meter" aria-label={indicatorLabels[key]} aria-valuenow={selectedDistrict.indicators[key]} aria-valuemin={0} aria-valuemax={100}><i style={{ width: selectedDistrict.indicators[key] + '%' }} /></div>
-          </div>)}</div>
-          <p className="synthetic-note">Игровые показатели, не городская статистика</p>
+          <p className="district-population">{selectedDistrict.population}</p>
+          <div className="district-index"><Activity size={19} aria-hidden="true" /><span>Индекс района D</span><MetricValue before={baselineDistrict!.score} after={selectedDistrict.score} /></div>
+          <IndicatorStatistics before={baselineDistrict!.rawIndicators} after={selectedDistrict.rawIndicators} />
+          <div className="district-scenario"><span>Стартовые условия</span><p>{districtScenarios[selectedDistrict.id]}</p>{selectedDistrict.id === 'almaty' && <p>Включает территорию Сарайшыка.</p>}</div>
+          <p className="synthetic-note">Все показатели: 0–100, больше — лучше. Общий балл направления учитывает веса его двух показателей; экология = 45% E1 + 55% E2. Игровые данные, не городская статистика.</p>
         </aside>
 
-        <section className="decision-dock hud-panel" aria-label="Выбор инициативы">
-          <div className="dock-head">
-            <div><p className="eyebrow">Развитие района · {selectedDistrict.name}</p><h2 ref={directionHeading} tabIndex={-1}>{selectedDirection ? directionLabels[selectedDirection] : 'Что изменим?'}</h2></div>
-            <Layers3 size={22} strokeWidth={1.5} aria-hidden="true" />
+        <section className="decision-dock hud-panel" ref={dock} aria-label="Выбор инициативы">
+          <div className="initiative-tabs" role="tablist" aria-label="Категории инициатив">{initiativeTabs.map(tab => {
+            const Icon = directionIcons[tab.id]
+            const count = allSelections.filter(selection => belongsToTab(initiatives.find(item => item.id === selection.id)!, tab.id)).length
+            return <button id={'initiative-tab-' + tab.id} className={'initiative-tab' + (tab.id === 'CITY' ? ' city-tab' : '')} key={tab.id} role="tab" type="button" aria-selected={selectedTab === tab.id} tabIndex={selectedTab === tab.id ? 0 : -1} aria-controls="initiative-panel" onClick={() => setSelectedTab(tab.id)} onKeyDown={event => {
+              const next = nextInitiativeTab(tab.id, event.key)
+              if (!next) return
+              event.preventDefault()
+              setSelectedTab(next)
+              document.getElementById('initiative-tab-' + next)?.focus()
+            }}><Icon size={20} strokeWidth={1.6} aria-hidden="true" /><span>{tab.label}</span>{count > 0 && <b className="category-count">{count}</b>}</button>
+          })}</div>
+
+          <div id="initiative-panel" className="initiative-panel" role="tabpanel" aria-labelledby={'initiative-tab-' + selectedTab}>
+            <div className="dock-context"><span>{selectedTab === 'CITY' ? <><Globe2 size={14} aria-hidden="true" /> Все 5 районов</> : <><MapPin size={14} aria-hidden="true" /> {selectedDistrict.name}</>}</span><p>{selectedTab === 'CITY' ? 'Общегородские меры · лимит 2 считается по исходному направлению' : 'Выберите одну или несколько мер · не более 2 из одного направления'}</p></div>
+            <div className="initiative-list">{initiatives.filter(initiative => belongsToTab(initiative, selectedTab)).map(initiative => {
+              const appliedSelection = applied.find(item => item.id === initiative.id)
+              const draftSelection = draft.find(item => item.id === initiative.id)
+              const existing = appliedSelection ?? draftSelection
+              const candidate: Selection = initiative.type === 'R' ? { id: initiative.id, district: districtIds[selectedDistrict.id] } : { id: initiative.id }
+              const reason = existing ? null : validateSelection([...allSelections, candidate], campaignData)
+              const measure = getMeasure(initiative.id)!
+              return <button className={'initiative' + (existing ? ' selected' : '') + (appliedSelection ? ' applied' : '')} aria-pressed={Boolean(existing)} disabled={Boolean(reason) || Boolean(appliedSelection) || isSending} key={initiative.id} onClick={() => {
+                setDraft(current => draftSelection ? current.filter(item => item.id !== initiative.id) : [...current, candidate])
+                setMessage('')
+              }} type="button">
+                <span className="initiative-meta"><span>{initiative.id} · {initiative.type === 'C' ? directionLabels[initiative.direction] : existing ? selectionTarget(existing) : selectedDistrict.name}</span><b>{initiative.cost} ед.</b></span>
+                <strong>{initiative.title}</strong>
+                <span className="initiative-effects">Полный эффект: {Object.entries(measure.effects).map(([key, value]) => key + ' ' + (value > 0 ? '+' : '−') + Math.abs(value)).join(' · ')}</span>
+                <span className="initiative-lag">Лаг {measure.lag} кв. · за 8 кв. реализуется {formatValue((8 - measure.lag) / 8 * 100)}%</span>
+                <small className="initiative-state">{existing && <Check size={13} aria-hidden="true" />}{appliedSelection ? 'Применено' : draftSelection ? 'Выбрано · нажмите, чтобы убрать' : reason ?? 'Добавить к отправке'}</small>
+              </button>
+            })}</div>
           </div>
-          {selectedDirection ? <>
-            <button className="category-back" type="button" onClick={() => setSelectedDirection(null)}><ChevronLeft size={16} aria-hidden="true" /> Все категории</button>
-            <div className="initiative-list" aria-label={'Инициативы: ' + directionLabels[selectedDirection]} key={selectedDirection}>
-              {initiatives.filter((initiative) => initiative.direction === selectedDirection).map((initiative) => {
-                const selected = selections.some(item => item.id === initiative.id)
-                const candidate: Selection = initiative.type === 'R' ? { id: initiative.id, district: districtIds[selectedDistrict.id] } : { id: initiative.id }
-                const reason = selected ? null : validateSelection([...selections, candidate], campaignData)
-                return <button className={'initiative' + (selected ? ' selected' : '')} aria-pressed={selected} disabled={Boolean(reason) || isSending} key={initiative.id} onClick={() => {
-                  setSelections(current => {
-                    const next = selected ? current.filter(item => item.id !== initiative.id) : [...current, candidate]
-                    return validateSelection(next, campaignData) ? current : next
-                  })
-                  setScore(null)
-                  setDistricts(initialDistricts)
-                  setMessage('')
-                }} type="button">
-                  <span className="initiative-meta"><span>{initiative.id} · {initiative.type === 'C' ? 'Весь город' : selectedDistrict.name}</span><b>{initiative.cost} млрд ₸</b></span>
-                  <strong>{initiative.title}</strong>
-                  <small className="initiative-state">{selected ? <><Check size={14} aria-hidden="true" /> В сценарии · нажмите, чтобы убрать</> : 'Добавить в сценарий'}</small>
-                  {reason && <small className="constraint-reason">{reason}</small>}
-                </button>
-              })}
-            </div>
-          </> : <>
-            <p className="dock-description">Сначала направление, затем инициатива</p>
-            <div className="category-list" aria-label="Категории инициатив">
-              {Object.entries(directionLabels).map(([direction, label]) => {
-                const Icon = directionIcons[direction as keyof typeof directionIcons]
-                const measures = initiatives.filter((initiative) => initiative.direction === direction)
-                const selectedCount = selections.filter((selection) => measures.some((measure) => measure.id === selection.id)).length
-                return <button className={'category-button' + (selectedCount ? ' has-selections' : '')} id={'direction-' + direction} key={direction} type="button" onClick={() => setSelectedDirection(direction)}>
-                  <Icon className="category-icon" size={23} strokeWidth={1.6} aria-hidden="true" />
-                  <span className="category-copy"><strong>{label}</strong><small>{measures.length} инициативы</small></span>
-                  {selectedCount > 0 && <span className="category-count" aria-label={'Выбрано ' + selectedCount + ' из ' + campaignData.rules.perDirection}>{selectedCount}/{campaignData.rules.perDirection}</span>}
-                  <ChevronRight size={17} className="category-chevron" aria-hidden="true" />
-                </button>
-              })}
-            </div>
-          </>}
+
           <div className="decision-footer">
-            <div className="scenario-heading"><span>Ваш сценарий</span><strong>{selections.length} / {campaignData.rules.count}</strong></div>
-            {selections.length > 0 && <ul className="selected-campaigns">{selections.map(selection => <li key={selection.id}>
-              <span>{initiatives.find(item => item.id === selection.id)?.title}<small>{selection.district ? initialDistricts.find(item => districtIds[item.id] === selection.district)?.name : 'Весь город'}</small></span>
-              <button className="icon-button" type="button" disabled={isSending} aria-label={'Убрать ' + selection.id} onClick={() => { setSelections(current => current.filter(item => item.id !== selection.id)); setScore(null); setDistricts(initialDistricts); setMessage('') }}><X size={15} aria-hidden="true" /></button>
-            </li>)}</ul>}
-            <p className="scenario-hint">{validationError ?? 'Готов к расчёту. Остаток бюджета не даёт бонуса.'}</p>
-            <button className="command-button" disabled={Boolean(validationError) || isSending} onClick={submitDecision} type="button">{isSending ? 'Считаем…' : 'Рассчитать сценарий'}</button>
-            <div className="calculation-status" role="status">{message}</div>
+            <div className="scenario-summary">
+              <div className="scenario-heading"><strong>{applied.length} / 5 применено</strong><span>{draft.length ? 'К отправке: ' + draft.length : complete ? 'Раунд завершён' : 'Можно отправлять по одной'}</span></div>
+              {allSelections.length > 0 && <ul className="selected-campaigns">{allSelections.map(selection => {
+                const committed = applied.some(item => item.id === selection.id)
+                const title = initiatives.find(item => item.id === selection.id)!.title
+                return <li key={selection.id} className={committed ? 'committed' : ''} title={title}>
+                  {committed && <Check size={13} aria-label="Применено" />}<span>{selection.id} · {selectionTarget(selection)}</span>
+                  {!committed && <button className="icon-button" type="button" disabled={isSending} aria-label={'Убрать ' + selection.id} onClick={() => { setDraft(current => current.filter(item => item.id !== selection.id)); setMessage('') }}><X size={14} aria-hidden="true" /></button>}
+                </li>
+              })}</ul>}
+              <p className="scenario-hint">{complete ? 'Итоговый набор: ровно 5 решений. Остаток бюджета не даёт бонуса.' : 'Общий набор — ровно 5 решений. На карте и сбоку показаны только применённые изменения.'}</p>
+            </div>
+            <div className="decision-buttons">
+              {applied.length > 0 && <button className="reset-button" type="button" disabled={isSending} onClick={resetRound}>Новый раунд</button>}
+              <button className="command-button" disabled={Boolean(validationError) || isSending} onClick={submitDecision} type="button">{isSending ? 'Считаем…' : complete ? 'Все 5 применены' : draft.length ? 'Применить (' + draft.length + ')' : 'Выберите меру'}</button>
+            </div>
           </div>
+          <div className="calculation-status" role="status">{message}</div>
         </section>
       </> : <div className="selection-prompt hud-panel">
         <MapPin size={23} strokeWidth={1.6} aria-hidden="true" />
